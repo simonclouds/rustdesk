@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common/hbbs/hbbs.dart';
+import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/user_model.dart';
 import 'package:get/get.dart';
@@ -721,6 +722,7 @@ void logOutConfirmDialog() {
     submit() {
       close();
       gFFI.userModel.logOut();
+      setState(() => {});
     }
 
     return CustomAlertDialog(

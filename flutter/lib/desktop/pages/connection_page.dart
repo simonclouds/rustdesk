@@ -262,7 +262,7 @@ class _ConnectionPageState extends State<ConnectionPage>
   void onWindowLeaveFullScreen() {
     // Restore edge border to default edge size.
     stateGlobal.resizeEdgeSize.value =
-        stateGlobal.isMaximized.isTrue ? kMaximizeEdgeSize : windowEdgeSize;
+        stateGlobal.isMaximized.isTrue ? kMaximizeEdgeSize : kWindowEdgeSize;
   }
 
   @override
@@ -274,32 +274,56 @@ class _ConnectionPageState extends State<ConnectionPage>
   @override
   Widget build(BuildContext context) {
     final isOutgoingOnly = bind.isOutgoingOnly();
+    var isLogin = gFFI.userModel.isLogin;
+
     return Column(
       children: [
+        // todo simon  start 未登录则隐藏远程出去的界面；已登录则显示可远程出去界面，远程 ID
         Expanded(
-            child: Column(
-          children: [
-            Row(
-              children: [
-                Flexible(child: _buildRemoteIDTextField(context)),
-              ],
-            ).marginOnly(top: 22),
-            SizedBox(height: 12),
-            Divider().paddingOnly(right: 12),
-            Expanded(child: PeerTabPage()),
-          ],
-        ).paddingOnly(left: 12.0)),
+          child: Column(
+            children: [
+              Offstage(
+                offstage: !isLogin,
+                child: Row(
+                  children: [
+                    Flexible(child: _buildRemoteIDTextField(context))
+                  ],
+                ).marginOnly(top:22),
+              ),
+              RefreshWidget(
+                onPressed: () {
+                  setState(() {
+                    
+                  });
+                },
+                spinning: false.obs,
+                child: RotatedBox(
+                  quarterTurns: 2,
+                  child: Icon(
+                    Icons.refresh,
+                    size: 18,
+                    color: Color.fromRGBO(0, 128, 0, 1)
+                ))),
+              SizedBox(height: 12),
+              Divider().paddingOnly(right: 12),
+              Expanded(child: PeerTabPage()),
+            ],
+          ).paddingOnly(left: 12.0)),
+        // todo simon end
         if (!isOutgoingOnly) const Divider(height: 1),
         if (!isOutgoingOnly) OnlineStatusWidget()
       ],
     );
   }
 
+
   /// Callback for the connect button.
   /// Connects to the selected peer.
   void onConnect({bool isFileTransfer = false}) {
     var id = _idController.id;
-    connect(context, id, isFileTransfer: isFileTransfer);
+    if (gFFI.userModel.isLogin) {
+      connect(context, id, isFileTransfer: isFileTransfer);
+    } 
   }
 
   Future<void> _fetchPeers() async {
@@ -527,7 +551,7 @@ class _ConnectionPageState extends State<ConnectionPage>
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Button(
-                    isOutline: true,
+                    isOutline: true,  
                     onTap: () => onConnect(isFileTransfer: true),
                     text: "Transfer file",
                   ),

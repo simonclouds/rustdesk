@@ -23,6 +23,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:window_size/window_size.dart' as window_size;
 
+
 import '../widgets/button.dart';
 
 class DesktopHomePage extends StatefulWidget {
@@ -58,6 +59,33 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+    //todo simon 硬编码密码和接受模式，貌似未生效
+    //bind.mainSetPermanentPassword(password: "!234rewQ");
+    bind.mainSetOption(key: "approve-mode", value:"click");
+
+
+    //todo simon 设置自定义 host 和 key --生效
+    RxString idErrMsg = ''.obs;
+    RxString relayErrMsg = ''.obs;
+    RxString apiErrMsg = ''.obs;
+    final errMsgs = [
+      idErrMsg,
+      relayErrMsg,
+      apiErrMsg,
+    ];
+    setServerConfig(
+      null,
+      errMsgs,
+      ServerConfig(
+          idServer: "192.168.170.206:21116",
+          relayServer: "",
+          apiServer: "",
+          key: "AJJPJ3IT5AaUon4mztuLcCin2xiXjizG94agr2U5qq4="
+    ));
+    setState(() {});
+
+
     final isIncomingOnly = bind.isIncomingOnly();
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,6 +113,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       ),
       buildTip(context),
       if (!isOutgoingOnly) buildIDBoard(context),
+      //todo simon 注釋，界面隱藏
       if (!isOutgoingOnly) buildPasswordBoard(context),
       FutureBuilder<Widget>(
         future: buildHelpCards(),
@@ -213,6 +242,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                   ?.color
                                   ?.withOpacity(0.5)),
                         ).marginOnly(top: 5),
+                        //simon todo 界面修改，注釋
                         buildPopupMenu(context)
                       ],
                     ),
@@ -418,7 +448,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           "Status",
           "There is a newer version of ${bind.mainGetAppNameSync()} ${bind.mainGetNewVersion()} available.",
           "Click to download", () async {
-        final Uri url = Uri.parse('https://rustdesk.com/download');
+        final Uri url = Uri.parse('https://github.com/simonclouds/rustdesk/releases/latest');
         await launchUrl(url);
       }, closeButton: true);
     }
@@ -658,12 +688,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   @override
   void initState() {
     super.initState();
-    if (!bind.isCustomClient()) {
-      Timer(const Duration(seconds: 1), () async {
-        updateUrl = await bind.mainGetSoftwareUpdateUrl();
-        if (updateUrl.isNotEmpty) setState(() {});
-      });
-    }
+    Timer(const Duration(seconds: 1), () async {
+      updateUrl = await bind.mainGetSoftwareUpdateUrl();
+      if (updateUrl.isNotEmpty) setState(() {});
+    });
     _updateTimer = periodic_immediate(const Duration(seconds: 1), () async {
       await gFFI.serverModel.fetchID();
       final error = await bind.mainGetError();
@@ -798,6 +826,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         _updateWindowSize();
       });
     }
+
+
+            
   }
 
   _updateWindowSize() {
