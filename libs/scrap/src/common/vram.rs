@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     codec::{base_bitrate, enable_vram_option, EncoderApi, EncoderCfg, Quality},
-    AdapterDevice, CodecFormat, EncodeInput, EncodeYuvFormat, Pixfmt,
+    AdapterDevice, CodecFormat, CodecName, EncodeInput, EncodeYuvFormat, Pixfmt,
 };
 use hbb_common::{
     anyhow::{anyhow, bail, Context},
@@ -87,7 +87,10 @@ impl EncoderApi for VRamEncoder {
                         same_bad_len_counter: 0,
                         config,
                     }),
-                    Err(_) => Err(anyhow!(format!("Failed to create encoder"))),
+                    Err(_) => {
+                        hbb_common::config::HwCodecConfig::clear_vram();
+                        Err(anyhow!(format!("Failed to create encoder")))
+                    }
                 }
             }
             _ => Err(anyhow!("encoder type mismatch")),
@@ -180,18 +183,6 @@ impl EncoderApi for VRamEncoder {
     fn support_abr(&self) -> bool {
         self.config.device.vendor_id != ADAPTER_VENDOR_INTEL as u32
     }
-
-    fn support_changing_quality(&self) -> bool {
-        true
-    }
-
-    fn latency_free(&self) -> bool {
-        true
-    }
-
-    fn is_hardware(&self) -> bool {
-        true
-    }
 }
 
 impl VRamEncoder {
@@ -222,37 +213,32 @@ impl VRamEncoder {
             CodecFormat::H265 => DataFormat::H265,
             _ => return vec![],
         };
+        let Ok(displays) = crate::Display::all() else {
+            log::error!("failed to get displays");
+            return vec![];
+        };
+        if displays.is_empty() {
+            log::error!("no display found");
+            return vec![];
+        }
+        let luids = displays
+            .iter()
+            .map(|d| d.adapter_luid())
+            .collect::<Vec<_>>();
         let v: Vec<_> = get_available_config()
             .map(|c| c.e)
             .unwrap_or_default()
             .drain(..)
             .filter(|c| c.data_format == data_format)
             .collect();
-        if crate::hwcodec::HwRamEncoder::try_get(format).is_some() {
-            // has fallback, no need to require all adapters support
+        if luids
+            .iter()
+            .all(|luid| v.iter().any(|f| Some(f.luid) == *luid))
+        {
             v
         } else {
-            let Ok(displays) = crate::Display::all() else {
-                log::error!("failed to get displays");
-                return vec![];
-            };
-            if displays.is_empty() {
-                log::error!("no display found");
-                return vec![];
-            }
-            let luids = displays
-                .iter()
-                .map(|d| d.adapter_luid())
-                .collect::<Vec<_>>();
-            if luids
-                .iter()
-                .all(|luid| v.iter().any(|f| Some(f.luid) == *luid))
-            {
-                v
-            } else {
-                log::info!("not all adapters support {data_format:?}, luids = {luids:?}");
-                vec![]
-            }
+            log::info!("not all adapters support {data_format:?}, luids = {luids:?}");
+            vec![]
         }
     }
 
@@ -297,6 +283,10 @@ impl VRamEncoder {
     pub fn set_not_use(display: usize, not_use: bool) {
         log::info!("set display#{display} not use vram encode to {not_use}");
         ENOCDE_NOT_USE.lock().unwrap().insert(display, not_use);
+    }
+
+    pub fn not_use() -> bool {
+        ENOCDE_NOT_USE.lock().unwrap().iter().any(|v| *v.1)
     }
 }
 

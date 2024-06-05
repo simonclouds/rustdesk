@@ -170,26 +170,6 @@ pub fn get_option<T: AsRef<str>>(key: T) -> String {
 }
 
 #[inline]
-#[cfg(target_os = "macos")]
-pub fn use_texture_render() -> bool {
-    cfg!(feature = "flutter")
-        && LocalConfig::get_option(config::keys::OPTION_TEXTURE_RENDER) == "Y"
-}
-
-#[inline]
-#[cfg(any(target_os = "windows", target_os = "linux"))]
-pub fn use_texture_render() -> bool {
-    cfg!(feature = "flutter")
-        && LocalConfig::get_option(config::keys::OPTION_TEXTURE_RENDER) != "N"
-}
-
-#[inline]
-#[cfg(any(target_os = "android", target_os = "ios"))]
-pub fn use_texture_render() -> bool {
-    false
-}
-
-#[inline]
 pub fn get_local_option(key: String) -> String {
     LocalConfig::get_option(&key)
 }
@@ -918,8 +898,7 @@ pub fn has_vram() -> bool {
 #[cfg(feature = "flutter")]
 #[inline]
 pub fn supported_hwdecodings() -> (bool, bool) {
-    let decoding =
-        scrap::codec::Decoder::supported_decodings(None, use_texture_render(), None, &vec![]);
+    let decoding = scrap::codec::Decoder::supported_decodings(None, true, None, &vec![]);
     #[allow(unused_mut)]
     let (mut h264, mut h265) = (decoding.ability_h264 > 0, decoding.ability_h265 > 0);
     #[cfg(feature = "vram")]
@@ -1141,7 +1120,7 @@ async fn check_connect_status_(reconnect: bool, rx: mpsc::UnboundedReceiver<ipc:
                                             )
                                         ))]
                                 {
-                                    let b = OPTIONS.lock().unwrap().get(config::keys::OPTION_ENABLE_FILE_TRANSFER).map(|x| x.to_string()).unwrap_or_default();
+                                    let b = OPTIONS.lock().unwrap().get("enable-file-transfer").map(|x| x.to_string()).unwrap_or_default();
                                     if b != enable_file_transfer {
                                         clipboard::ContextSend::enable(b.is_empty());
                                         enable_file_transfer = b;

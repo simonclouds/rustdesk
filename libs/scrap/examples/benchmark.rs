@@ -272,7 +272,6 @@ mod hw {
         let mut encoder = HwRamEncoder::new(
             EncoderCfg::HWRAM(HwRamEncoderConfig {
                 name: info.name.clone(),
-                mc_name: None,
                 width,
                 height,
                 quality,

@@ -131,9 +131,9 @@ class _FileManagerTabPageState extends State<FileManagerTabPage> {
       tabController.clear();
       return true;
     } else {
+      final opt = "enable-confirm-closing-tabs";
       final bool res;
-      if (!option2bool(kOptionEnableConfirmClosingTabs,
-          bind.mainGetLocalOption(key: kOptionEnableConfirmClosingTabs))) {
+      if (!option2bool(opt, bind.mainGetLocalOption(key: opt))) {
         res = true;
       } else {
         res = await closeConfirmDialog();

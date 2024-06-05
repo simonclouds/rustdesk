@@ -10,7 +10,6 @@ use jni::{
 
 use jni::errors::{Error as JniError, Result as JniResult};
 use lazy_static::lazy_static;
-use serde::Deserialize;
 use std::ops::Not;
 use std::sync::atomic::{AtomicPtr, Ordering::SeqCst};
 use std::sync::{Mutex, RwLock};
@@ -21,7 +20,6 @@ lazy_static! {
     static ref VIDEO_RAW: Mutex<FrameRaw> = Mutex::new(FrameRaw::new("video", MAX_VIDEO_FRAME_TIMEOUT));
     static ref AUDIO_RAW: Mutex<FrameRaw> = Mutex::new(FrameRaw::new("audio", MAX_AUDIO_FRAME_TIMEOUT));
     static ref NDK_CONTEXT_INITED: Mutex<bool> = Default::default();
-    static ref MEDIA_CODEC_INFOS: RwLock<Option<MediaCodecInfos>> = RwLock::new(None);
 }
 
 const MAX_VIDEO_FRAME_TIMEOUT: Duration = Duration::from_millis(100);
@@ -50,8 +48,6 @@ impl FrameRaw {
 
     fn set_enable(&mut self, value: bool) {
         self.enable = value;
-        self.ptr.store(std::ptr::null_mut(), SeqCst);
-        self.len = 0;
     }
 
     fn update(&mut self, data: *mut u8, len: usize) {
@@ -65,7 +61,7 @@ impl FrameRaw {
 
     // take inner data as slice
     // release when success
-    fn take<'a>(&mut self, dst: &mut Vec<u8>, last: &mut Vec<u8>) -> Option<()> {
+    fn take<'a>(&mut self) -> Option<&'a [u8]> {
         if self.enable.not() {
             return None;
         }
@@ -79,14 +75,7 @@ impl FrameRaw {
             }
             let slice = unsafe { std::slice::from_raw_parts(ptr, self.len) };
             self.release();
-            if last.len() == slice.len() && crate::would_block_if_equal(last, slice).is_err() {
-                return None;
-            }
-            dst.resize(slice.len(), 0);
-            unsafe {
-                std::ptr::copy_nonoverlapping(slice.as_ptr(), dst.as_mut_ptr(), slice.len());
-            }
-            Some(())
+            Some(slice)
         }
     }
 
@@ -96,12 +85,12 @@ impl FrameRaw {
     }
 }
 
-pub fn get_video_raw<'a>(dst: &mut Vec<u8>, last: &mut Vec<u8>) -> Option<()> {
-    VIDEO_RAW.lock().ok()?.take(dst, last)
+pub fn get_video_raw<'a>() -> Option<&'a [u8]> {
+    VIDEO_RAW.lock().ok()?.take()
 }
 
-pub fn get_audio_raw<'a>(dst: &mut Vec<u8>, last: &mut Vec<u8>) -> Option<()> {
-    AUDIO_RAW.lock().ok()?.take(dst, last)
+pub fn get_audio_raw<'a>() -> Option<&'a [u8]> {
+    AUDIO_RAW.lock().ok()?.take()
 }
 
 #[no_mangle]
@@ -152,7 +141,11 @@ pub extern "system" fn Java_ffi_FFI_setFrameRawEnable(
 }
 
 #[no_mangle]
-pub extern "system" fn Java_ffi_FFI_init(env: JNIEnv, _class: JClass, ctx: JObject) {
+pub extern "system" fn Java_ffi_FFI_init(
+    env: JNIEnv,
+    _class: JClass,
+    ctx: JObject,
+) {
     log::debug!("MainService init from java");
     if let Ok(jvm) = env.get_java_vm() {
         *JVM.write().unwrap() = Some(jvm);
@@ -161,52 +154,6 @@ pub extern "system" fn Java_ffi_FFI_init(env: JNIEnv, _class: JClass, ctx: JObje
             init_ndk_context().ok();
         }
     }
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct MediaCodecInfo {
-    pub name: String,
-    pub is_encoder: bool,
-    #[serde(default)]
-    pub hw: Option<bool>, // api 29+
-    pub mime_type: String,
-    pub surface: bool,
-    pub nv12: bool,
-    #[serde(default)]
-    pub low_latency: Option<bool>, // api 30+, decoder
-    pub min_bitrate: u32,
-    pub max_bitrate: u32,
-    pub min_width: usize,
-    pub max_width: usize,
-    pub min_height: usize,
-    pub max_height: usize,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct MediaCodecInfos {
-    pub version: usize,
-    pub w: usize, // aligned
-    pub h: usize, // aligned
-    pub codecs: Vec<MediaCodecInfo>,
-}
-
-#[no_mangle]
-pub extern "system" fn Java_ffi_FFI_setCodecInfo(env: JNIEnv, _class: JClass, info: JString) {
-    let mut env = env;
-    if let Ok(info) = env.get_string(&info) {
-        let info: String = info.into();
-        if let Ok(infos) = serde_json::from_str::<MediaCodecInfos>(&info) {
-            *MEDIA_CODEC_INFOS.write().unwrap() = Some(infos);
-        }
-    }
-}
-
-pub fn get_codec_info() -> Option<MediaCodecInfos> {
-    MEDIA_CODEC_INFOS.read().unwrap().as_ref().cloned()
-}
-
-pub fn clear_codec_info() {
-    *MEDIA_CODEC_INFOS.write().unwrap() = None;
 }
 
 pub fn call_main_service_pointer_input(kind: &str, mask: i32, x: i32, y: i32) -> JniResult<()> {

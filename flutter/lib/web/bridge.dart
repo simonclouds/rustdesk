@@ -203,6 +203,12 @@ class RustdeskImpl {
         ]));
   }
 
+  Future<String?> sessionGetFlutterOptionByPeerId(
+      {required String id, required String k, dynamic hint}) {
+    return Future(
+        () => js.context.callMethod('getByName', ['option:flutter:peer', k]));
+  }
+
   int getNextTextureKey({dynamic hint}) {
     return 0;
   }
@@ -1414,6 +1420,10 @@ class RustdeskImpl {
     throw UnimplementedError();
   }
 
+  bool mainHasPixelbufferTextureRender({dynamic hint}) {
+    return false;
+  }
+
   bool mainHasFileClipboard({dynamic hint}) {
     return false;
   }
@@ -1457,10 +1467,6 @@ class RustdeskImpl {
   }
 
   bool isDisableAb({dynamic hint}) {
-    return false;
-  }
-
-  bool isDisableGroupPanel({dynamic hint}) {
     return false;
   }
 
@@ -1596,19 +1602,6 @@ class RustdeskImpl {
 
   Future<void> sessionRequestNewDisplayInitMsgs(
       {required UuidValue sessionId, required int display, dynamic hint}) {
-    throw UnimplementedError();
-  }
-
-  Future<String> mainHandleWaylandScreencastRestoreToken(
-      {required String key, required String value, dynamic hint}) {
-    throw UnimplementedError();
-  }
-
-  bool mainIsOptionFixed({required String key, dynamic hint}) {
-    throw UnimplementedError();
-  }
-
-  bool mainGetUseTextureRender({dynamic hint}) {
     throw UnimplementedError();
   }
 

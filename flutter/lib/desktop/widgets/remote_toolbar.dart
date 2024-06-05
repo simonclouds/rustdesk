@@ -7,6 +7,7 @@ import 'package:flutter_hbb/common/widgets/audio_input.dart';
 import 'package:flutter_hbb/common/widgets/toolbar.dart';
 import 'package:flutter_hbb/models/chat_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
+import 'package:flutter_hbb/models/desktop_render_texture.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/utils/multi_window_manager.dart';
 import 'package:flutter_hbb/plugin/widgets/desc_ui.dart';
@@ -26,11 +27,12 @@ import './popup_menu.dart';
 import './kb_layout_type_chooser.dart';
 
 class ToolbarState {
+  final kStoreKey = 'remoteMenubarState';
   late RxBool show;
   late RxBool _pin;
 
   ToolbarState() {
-    final s = bind.getLocalFlutterOption(k: kOptionRemoteMenubarState);
+    final s = bind.getLocalFlutterOption(k: kStoreKey);
     if (s.isEmpty) {
       _initSet(false, false);
       return;
@@ -51,8 +53,8 @@ class ToolbarState {
 
   _initSet(bool s, bool p) {
     // Show remubar when connection is established.
-    show = RxBool(
-        bind.mainGetUserDefaultOption(key: kOptionCollapseToolbar) != 'Y');
+    show =
+        RxBool(bind.mainGetUserDefaultOption(key: 'collapse_toolbar') != 'Y');
     _pin = RxBool(p);
   }
 
@@ -84,7 +86,7 @@ class ToolbarState {
 
   _savePin() async {
     bind.setLocalFlutterOption(
-        k: kOptionRemoteMenubarState, v: jsonEncode({'pin': _pin.value}));
+        k: kStoreKey, v: jsonEncode({'pin': _pin.value}));
   }
 
   save() async {
@@ -614,14 +616,14 @@ class _MonitorMenu extends StatelessWidget {
       bind.mainGetUserDefaultOption(key: kKeyShowMonitorsToolbar) == 'Y';
 
   bool get supportIndividualWindows =>
-      !isWeb && ffi.ffiModel.pi.isSupportMultiDisplay;
+      useTextureRender && ffi.ffiModel.pi.isSupportMultiDisplay;
 
   @override
   Widget build(BuildContext context) => showMonitorsToolbar
-      ? buildMultiMonitorMenu(context)
-      : Obx(() => buildMonitorMenu(context));
+      ? buildMultiMonitorMenu()
+      : Obx(() => buildMonitorMenu());
 
-  Widget buildMonitorMenu(BuildContext context) {
+  Widget buildMonitorMenu() {
     final width = SimpleWrapper<double>(0);
     final monitorsIcon =
         globalMonitorsWidget(width, Colors.white, Colors.black38);
@@ -635,23 +637,20 @@ class _MonitorMenu extends StatelessWidget {
         menuStyle: MenuStyle(
             padding:
                 MaterialStatePropertyAll(EdgeInsets.symmetric(horizontal: 6))),
-        menuChildrenGetter: () => [buildMonitorSubmenuWidget(context)]);
+        menuChildrenGetter: () => [buildMonitorSubmenuWidget()]);
   }
 
-  Widget buildMultiMonitorMenu(BuildContext context) {
-    return Row(children: buildMonitorList(context, true));
+  Widget buildMultiMonitorMenu() {
+    return Row(children: buildMonitorList(true));
   }
 
-  Widget buildMonitorSubmenuWidget(BuildContext context) {
-    final m = Provider.of<ImageModel>(context);
+  Widget buildMonitorSubmenuWidget() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(children: buildMonitorList(context, false)),
-        supportIndividualWindows && m.useTextureRender ? Divider() : Offstage(),
-        supportIndividualWindows && m.useTextureRender
-            ? chooseDisplayBehavior()
-            : Offstage(),
+        Row(children: buildMonitorList(false)),
+        supportIndividualWindows ? Divider() : Offstage(),
+        supportIndividualWindows ? chooseDisplayBehavior() : Offstage(),
       ],
     );
   }
@@ -682,7 +681,7 @@ class _MonitorMenu extends StatelessWidget {
         ),
       );
 
-  List<Widget> buildMonitorList(BuildContext context, bool isMulti) {
+  List<Widget> buildMonitorList(bool isMulti) {
     final List<Widget> monitorList = [];
     final pi = ffi.ffiModel.pi;
 
@@ -737,10 +736,7 @@ class _MonitorMenu extends StatelessWidget {
     for (int i = 0; i < pi.displays.length; i++) {
       monitorList.add(buildMonitorButton(i));
     }
-    final m = Provider.of<ImageModel>(context);
-    if (supportIndividualWindows &&
-        m.useTextureRender &&
-        pi.displays.length > 1) {
+    if (supportIndividualWindows && pi.displays.length > 1) {
       monitorList.add(buildMonitorButton(kAllDisplayValue));
     }
     return monitorList;
@@ -823,12 +819,7 @@ class _MonitorMenu extends StatelessWidget {
     }
     RxInt display = CurrentDisplayState.find(id);
     if (display.value != i) {
-      final isChooseDisplayToOpenInNewWindow = pi.isSupportMultiDisplay &&
-          bind.mainGetUseTextureRender() &&
-          bind.sessionGetDisplaysAsIndividualWindows(
-                  sessionId: ffi.sessionId) ==
-              'Y';
-      if (isChooseDisplayToOpenInNewWindow) {
+      if (isChooseDisplayToOpenInNewWindow(pi, ffi.sessionId)) {
         openMonitorInNewTabOrWindow(i, ffi.id, pi);
       } else {
         openMonitorInTheSameTab(i, ffi, pi, updateCursorPos: !isMulti);
@@ -1077,6 +1068,7 @@ class _DisplayMenuState extends State<_DisplayMenu> {
             id: widget.id,
             ffi: widget.ffi,
           ),
+        Divider(),
         cursorToggles(),
         Divider(),
         toggles(),
@@ -1228,16 +1220,14 @@ class _DisplayMenuState extends State<_DisplayMenu> {
         hasData: (data) {
           final v = data as List<TToggleMenu>;
           if (v.isEmpty) return Offstage();
-          return Column(children: [
-            Divider(),
-            ...v
-                .map((e) => CkbMenuButton(
-                    value: e.value,
-                    onChanged: e.onChanged,
-                    child: e.child,
-                    ffi: ffi))
-                .toList(),
-          ]);
+          return Column(
+              children: v
+                  .map((e) => CkbMenuButton(
+                      value: e.value,
+                      onChanged: e.onChanged,
+                      child: e.child,
+                      ffi: ffi))
+                  .toList());
         });
   }
 
@@ -1885,7 +1875,7 @@ class _KeyboardMenu extends StatelessWidget {
             ? (value) async {
                 if (value == null) return;
                 await bind.sessionToggleOption(
-                    sessionId: ffi.sessionId, value: kOptionToggleViewOnly);
+                    sessionId: ffi.sessionId, value: kOptionViewOnly);
                 ffiModel.setViewOnly(id, value);
               }
             : null,
@@ -2029,7 +2019,6 @@ class _VoiceCallMenu extends StatelessWidget {
     );
   }
 }
-
 class _RecordMenu extends StatelessWidget {
   const _RecordMenu({Key? key}) : super(key: key);
 
@@ -2383,18 +2372,18 @@ class _DraggableShowHideState extends State<_DraggableShowHide> {
     super.initState();
 
     final confLeft = double.tryParse(
-        bind.mainGetLocalOption(key: kOptionRemoteMenubarDragLeft));
+        bind.mainGetLocalOption(key: 'remote-menubar-drag-left'));
     if (confLeft == null) {
       bind.mainSetLocalOption(
-          key: kOptionRemoteMenubarDragLeft, value: left.toString());
+          key: 'remote-menubar-drag-left', value: left.toString());
     } else {
       left = confLeft;
     }
     final confRight = double.tryParse(
-        bind.mainGetLocalOption(key: kOptionRemoteMenubarDragRight));
+        bind.mainGetLocalOption(key: 'remote-menubar-drag-right'));
     if (confRight == null) {
       bind.mainSetLocalOption(
-          key: kOptionRemoteMenubarDragRight, value: right.toString());
+          key: 'remote-menubar-drag-right', value: right.toString());
     } else {
       right = confRight;
     }

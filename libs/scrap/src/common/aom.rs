@@ -296,18 +296,6 @@ impl EncoderApi for AomEncoder {
     fn support_abr(&self) -> bool {
         true
     }
-
-    fn support_changing_quality(&self) -> bool {
-        true
-    }
-
-    fn latency_free(&self) -> bool {
-        true
-    }
-
-    fn is_hardware(&self) -> bool {
-        false
-    }
 }
 
 impl AomEncoder {

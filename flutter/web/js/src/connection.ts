@@ -474,8 +474,8 @@ export default class Connection {
   }) {
     const login_request = message.LoginRequest.fromPartial({
       username: this._id!,
-      my_id: "web", // to-do
-      my_name: "web", // to-do
+      my_id: "simon", // to-do
+      my_name: "simon2", // to-do
       password: login.password,
       option: this.getOptionMessage(),
       video_ack_required: true,
@@ -660,7 +660,7 @@ export default class Connection {
     const defaultToggleTrue = [
       'show-remote-cursor',
       'privacy-mode',
-      'enable-file-copy-paste',
+      'enable-file-transfer',
       'allow_swap_key',
     ];
     return this._options[name] || (defaultToggleTrue.includes(name) ? true : false);
@@ -906,7 +906,7 @@ export default class Connection {
       case "privacy-mode":
         option.privacy_mode = v2;
         break;
-      case "enable-file-copy-paste":
+      case "enable-file-transfer":
         option.enable_file_transfer = v2;
         break;
       case "block-input":
@@ -933,7 +933,7 @@ export default class Connection {
           option.show_remote_cursor = this.getToggleOption("show-remote-cursor")
             ? message.OptionMessage_BoolOption.Yes
             : message.OptionMessage_BoolOption.No;
-          option.enable_file_transfer = this.getToggleOption("enable-file-copy-paste")
+          option.enable_file_transfer = this.getToggleOption("enable-file-transfer")
             ? message.OptionMessage_BoolOption.Yes
             : message.OptionMessage_BoolOption.No;
           option.lock_after_session_end = this.getToggleOption("lock-after-session-end")

@@ -39,7 +39,7 @@ use hbb_common::{
     },
     get_version_number, log,
     message_proto::{option_message::BoolOption, *},
-    protobuf::{Message as _, MessageField},
+    protobuf::Message as _,
     rand,
     rendezvous_proto::*,
     socket_client,
@@ -61,7 +61,6 @@ use crate::{
     check_port,
     common::input::{MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_TYPE_DOWN, MOUSE_TYPE_UP},
     create_symmetric_key_msg, decode_id_pk, get_rs_pk, is_keyboard_mode_supported, secure_tcp,
-    ui_interface::use_texture_render,
     ui_session_interface::{InvokeUiSession, Session},
 };
 
@@ -1036,23 +1035,16 @@ pub struct VideoHandler {
 }
 
 impl VideoHandler {
-    #[cfg(feature = "flutter")]
-    pub fn get_adapter_luid() -> Option<i64> {
-        crate::flutter::get_adapter_luid()
-    }
-
-    #[cfg(not(feature = "flutter"))]
-    pub fn get_adapter_luid() -> Option<i64> {
-        None
-    }
-
     /// Create a new video handler.
     pub fn new(format: CodecFormat, _display: usize) -> Self {
-        let luid = Self::get_adapter_luid();
+        #[cfg(all(feature = "vram", feature = "flutter"))]
+        let luid = crate::flutter::get_adapter_luid();
+        #[cfg(not(all(feature = "vram", feature = "flutter")))]
+        let luid = Default::default();
         log::info!("new video handler for display #{_display}, format: {format:?}, luid: {luid:?}");
         VideoHandler {
             decoder: Decoder::new(format, luid),
-            rgb: ImageRgb::new(ImageFormat::ARGB, crate::get_dst_stride_rgba()),
+            rgb: ImageRgb::new(ImageFormat::ARGB, crate::DST_STRIDE_RGBA),
             texture: std::ptr::null_mut(),
             recorder: Default::default(),
             record: false,
@@ -1104,9 +1096,10 @@ impl VideoHandler {
 
     /// Reset the decoder, change format if it is Some
     pub fn reset(&mut self, format: Option<CodecFormat>) {
-        #[cfg(target_os = "macos")]
-        self.rgb.set_stride(crate::get_dst_stride_rgba());
-        let luid = Self::get_adapter_luid();
+        #[cfg(all(feature = "flutter", feature = "vram"))]
+        let luid = crate::flutter::get_adapter_luid();
+        #[cfg(not(all(feature = "flutter", feature = "vram")))]
+        let luid = None;
         let format = format.unwrap_or(self.decoder.format());
         self.decoder = Decoder::new(format, luid);
         self.fail_counter = 0;
@@ -1510,9 +1503,9 @@ impl LoginConfigHandler {
                 BoolOption::Yes
             })
             .into();
-        } else if name == "enable-file-copy-paste" {
-            config.enable_file_copy_paste.v = !config.enable_file_copy_paste.v;
-            option.enable_file_transfer = (if config.enable_file_copy_paste.v {
+        } else if name == "enable-file-transfer" {
+            config.enable_file_transfer.v = !config.enable_file_transfer.v;
+            option.enable_file_transfer = (if config.enable_file_transfer.v {
                 BoolOption::Yes
             } else {
                 BoolOption::No
@@ -1545,7 +1538,7 @@ impl LoginConfigHandler {
                 option.disable_keyboard = f(false);
                 option.disable_clipboard = f(self.get_toggle_option("disable-clipboard"));
                 option.show_remote_cursor = f(self.get_toggle_option("show-remote-cursor"));
-                option.enable_file_transfer = f(self.config.enable_file_copy_paste.v);
+                option.enable_file_transfer = f(self.config.enable_file_transfer.v);
                 option.lock_after_session_end = f(self.config.lock_after_session_end.v);
             }
         } else {
@@ -1638,23 +1631,20 @@ impl LoginConfigHandler {
         if self.get_toggle_option("disable-audio") {
             msg.disable_audio = BoolOption::Yes.into();
         }
-        if !view_only && self.get_toggle_option(config::keys::OPTION_ENABLE_FILE_COPY_PASTE) {
+        if !view_only && self.get_toggle_option("enable-file-transfer") {
             msg.enable_file_transfer = BoolOption::Yes.into();
         }
         if view_only || self.get_toggle_option("disable-clipboard") {
             msg.disable_clipboard = BoolOption::Yes.into();
         }
-        msg.supported_decoding = MessageField::some(self.get_supported_decoding());
+        msg.supported_decoding =
+            hbb_common::protobuf::MessageField::some(Decoder::supported_decodings(
+                Some(&self.id),
+                cfg!(feature = "flutter"),
+                self.adapter_luid,
+                &self.mark_unsupported,
+            ));
         Some(msg)
-    }
-
-    pub fn get_supported_decoding(&self) -> SupportedDecoding {
-        Decoder::supported_decodings(
-            Some(&self.id),
-            use_texture_render(),
-            self.adapter_luid,
-            &self.mark_unsupported,
-        )
     }
 
     pub fn get_option_message_after_login(&self) -> Option<OptionMessage> {
@@ -1714,8 +1704,8 @@ impl LoginConfigHandler {
             self.config.lock_after_session_end.v
         } else if name == "privacy-mode" {
             self.config.privacy_mode.v
-        } else if name == config::keys::OPTION_ENABLE_FILE_COPY_PASTE {
-            self.config.enable_file_copy_paste.v
+        } else if name == "enable-file-transfer" {
+            self.config.enable_file_transfer.v
         } else if name == "disable-audio" {
             self.config.disable_audio.v
         } else if name == "disable-clipboard" {
@@ -2046,7 +2036,7 @@ impl LoginConfigHandler {
     pub fn update_supported_decodings(&self) -> Message {
         let decoding = scrap::codec::Decoder::supported_decodings(
             Some(&self.id),
-            use_texture_render(),
+            cfg!(feature = "flutter"),
             self.adapter_luid,
             &self.mark_unsupported,
         );
@@ -2075,7 +2065,7 @@ pub enum MediaData {
     VideoFrame(Box<VideoFrame>),
     AudioFrame(Box<AudioFrame>),
     AudioFormat(AudioFormat),
-    Reset(Option<usize>),
+    Reset(usize),
     RecordScreen(bool, usize, i32, i32, String),
 }
 
@@ -2251,16 +2241,8 @@ where
                         }
                     }
                     MediaData::Reset(display) => {
-                        if let Some(display) = display {
-                            if let Some(handler_controler) =
-                                handler_controller_map.get_mut(&display)
-                            {
-                                handler_controler.handler.reset(None);
-                            }
-                        } else {
-                            for (_, handler_controler) in handler_controller_map.iter_mut() {
-                                handler_controler.handler.reset(None);
-                            }
+                        if let Some(handler_controler) = handler_controller_map.get_mut(&display) {
+                            handler_controler.handler.reset(None);
                         }
                     }
                     MediaData::RecordScreen(start, display, w, h, id) => {
@@ -2963,7 +2945,6 @@ pub enum Data {
     ElevateWithLogon(String, String),
     NewVoiceCall,
     CloseVoiceCall,
-    ResetDecoder(Option<usize>),
 }
 
 /// Keycode for key events.

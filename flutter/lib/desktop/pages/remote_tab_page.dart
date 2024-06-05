@@ -350,6 +350,7 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
 
   void onRemoveId(String id) async {
     if (tabController.state.value.tabs.isEmpty) {
+      stateGlobal.setFullscreen(false, procWnd: false);
       // Keep calling until the window status is hidden.
       //
       // Workaround for Windows:
@@ -383,9 +384,9 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
       tabController.clear();
       return true;
     } else {
+      final opt = "enable-confirm-closing-tabs";
       final bool res;
-      if (!option2bool(kOptionEnableConfirmClosingTabs,
-          bind.mainGetLocalOption(key: kOptionEnableConfirmClosingTabs))) {
+      if (!option2bool(opt, bind.mainGetLocalOption(key: opt))) {
         res = true;
       } else {
         res = await closeConfirmDialog();
@@ -415,19 +416,19 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
       final display = args['display'];
       final displays = args['displays'];
       final screenRect = parseParamScreenRect(args);
-      Future.delayed(Duration.zero, () async {
-        if (stateGlobal.fullscreen.isTrue) {
-          await WindowController.fromWindowId(windowId()).setFullscreen(false);
-          stateGlobal.setFullscreen(false, procWnd: false);
+      windowOnTop(windowId());
+      tryMoveToScreenAndSetFullscreen(screenRect);
+      if (tabController.length == 0) {
+        // Show the hidden window.
+        if (isMacOS && stateGlobal.closeOnFullscreen == true) {
+          stateGlobal.setFullscreen(true);
         }
-        await setNewConnectWindowFrame(windowId(), id!, screenRect);
-        Future.delayed(Duration(milliseconds: isWindows ? 100 : 0), () async {
-          await windowOnTop(windowId());
-        });
-      });
+        // Reset the state
+        stateGlobal.closeOnFullscreen = null;
+      }
       ConnectionTypeState.init(id);
       _toolbarState.setShow(
-          bind.mainGetUserDefaultOption(key: kOptionCollapseToolbar) != 'Y');
+          bind.mainGetUserDefaultOption(key: 'collapse_toolbar') != 'Y');
       tabController.add(TabInfo(
         key: id,
         label: id,
@@ -521,8 +522,6 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
           returnValue = jsonEncode(coords.toJson());
         }
       }
-    } else if (call.method == kWindowEventSetFullscreen) {
-      stateGlobal.setFullscreen(call.arguments == 'true');
     }
     _update_remote_count();
     return returnValue;

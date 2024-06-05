@@ -65,12 +65,10 @@ class _ConnectionPageState extends State<ConnectionPage> {
       }();
     }
     if (isAndroid) {
-      if (!bind.isCustomClient()) {
-        Timer(const Duration(seconds: 1), () async {
-          _updateUrl = await bind.mainGetSoftwareUpdateUrl();
-          if (_updateUrl.isNotEmpty) setState(() {});
-        });
-      }
+      Timer(const Duration(seconds: 1), () async {
+        _updateUrl = await bind.mainGetSoftwareUpdateUrl();
+        if (_updateUrl.isNotEmpty) setState(() {});
+      });
     }
 
     _idController.addListener(() {

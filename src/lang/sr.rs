@@ -609,11 +609,5 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("no_audio_input_device_tip", ""),
         ("Incoming", ""),
         ("Outgoing", ""),
-        ("Clear Wayland screen selection", ""),
-        ("clear_Wayland_screen_selection_tip", ""),
-        ("confirm_clear_Wayland_screen_selection_tip", ""),
-        ("android_new_voice_call_tip", ""),
-        ("texture_render_tip", ""),
-        ("Use texture rendering", ""),
     ].iter().cloned().collect();
 }

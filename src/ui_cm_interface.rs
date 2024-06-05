@@ -79,7 +79,7 @@ struct IpcTaskRunner<T: InvokeUiCM> {
 lazy_static::lazy_static! {
     static ref CLIENTS: RwLock<HashMap<i32, Client>> = Default::default();
 }
-
+    
 static CLICK_TIME: AtomicI64 = AtomicI64::new(0);
 
 #[derive(Clone)]
@@ -221,7 +221,7 @@ impl<T: InvokeUiCM> ConnectionManager<T> {
         self.ui_handler.show_elevation(show);
     }
 
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     fn voice_call_started(&self, id: i32) {
         if let Some(client) = CLIENTS.write().unwrap().get_mut(&id) {
             client.incoming_voice_call = false;
@@ -230,7 +230,7 @@ impl<T: InvokeUiCM> ConnectionManager<T> {
         }
     }
 
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     fn voice_call_incoming(&self, id: i32) {
         if let Some(client) = CLIENTS.write().unwrap().get_mut(&id) {
             client.incoming_voice_call = true;
@@ -239,7 +239,7 @@ impl<T: InvokeUiCM> ConnectionManager<T> {
         }
     }
 
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     fn voice_call_closed(&self, id: i32, _reason: &str) {
         if let Some(client) = CLIENTS.write().unwrap().get_mut(&id) {
             client.incoming_voice_call = false;
@@ -574,9 +574,7 @@ pub async fn start_ipc<T: InvokeUiCM>(cm: ConnectionManager<T>) {
             feature = "unix-file-copy-paste"
         ),
     ))]
-    ContextSend::enable(
-        Config::get_option(hbb_common::config::keys::OPTION_ENABLE_FILE_TRANSFER).is_empty(),
-    );
+    ContextSend::enable(Config::get_option("enable-file-transfer").is_empty());
 
     match ipc::new_listener("_cm").await {
         Ok(mut incoming) => {
@@ -657,15 +655,6 @@ pub async fn start_listen<T: InvokeUiCM>(
             }
             Some(Data::Close) => {
                 break;
-            }
-            Some(Data::StartVoiceCall) => {
-                cm.voice_call_started(current_id);
-            }
-            Some(Data::VoiceCallIncoming) => {
-                cm.voice_call_incoming(current_id);
-            }
-            Some(Data::CloseVoiceCall(reason)) => {
-                cm.voice_call_closed(current_id, reason.as_str());
             }
             None => {
                 break;

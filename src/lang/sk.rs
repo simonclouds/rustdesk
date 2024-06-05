@@ -607,13 +607,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Follow remote window focus", "Nasledovať vzdialené zameranie okna"),
         ("default_proxy_tip", "Predvolený protokol a port sú Socks5 a 1080"),
         ("no_audio_input_device_tip", "Nenašlo sa žiadne vstupné zvukové zariadenie."),
-        ("Incoming", "Prichádzajúci"),
-        ("Outgoing", "Odchádzajúci"),
-        ("Clear Wayland screen selection", "Vyčistiť výber obrazovky Wayland"),
-        ("clear_Wayland_screen_selection_tip", "Po vymazaní výberu obrazovky môžete znova vybrať obrazovku, ktorú chcete zdieľať."),
-        ("confirm_clear_Wayland_screen_selection_tip", "Určite ste si istý, že chcete vyčistiť výber obrazovky Wayland?"),
-        ("android_new_voice_call_tip", "Bola prijatá nová žiadosť o hlasový hovor. Ak ho prijmete, zvuk sa prepne na hlasovú komunikáciu."),
-        ("texture_render_tip", "Použiť vykresľovanie textúr, aby boli obrázky hladšie."),
-        ("Use texture rendering", "Použiť vykresľovanie textúr"),
+        ("Incoming", ""),
+        ("Outgoing", ""),
     ].iter().cloned().collect();
 }

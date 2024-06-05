@@ -57,10 +57,10 @@ class _DesktopTabPageState extends State<DesktopTabPage> {
       tabController.onSelected = (key) {
         if (key == kTabLabelHomePage) {
           windowManager.setSize(getIncomingOnlyHomeSize());
-          setResizable(false);
+          windowManager.setResizable(false);
         } else {
           windowManager.setSize(getIncomingOnlySettingsSize());
-          setResizable(true);
+          windowManager.setResizable(true);
         }
       };
     }

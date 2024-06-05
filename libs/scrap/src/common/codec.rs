@@ -38,7 +38,6 @@ lazy_static::lazy_static! {
     static ref PEER_DECODINGS: Arc<Mutex<HashMap<i32, SupportedDecoding>>> = Default::default();
     static ref ENCODE_CODEC_FORMAT: Arc<Mutex<CodecFormat>> = Arc::new(Mutex::new(CodecFormat::VP9));
     static ref THREAD_LOG_TIME: Arc<Mutex<Option<Instant>>> = Arc::new(Mutex::new(None));
-    static ref USABLE_ENCODING: Arc<Mutex<Option<SupportedEncoding>>> = Arc::new(Mutex::new(None));
 }
 
 pub const ENCODE_NEED_SWITCH: &'static str = "ENCODE_NEED_SWITCH";
@@ -70,12 +69,6 @@ pub trait EncoderApi {
     fn bitrate(&self) -> u32;
 
     fn support_abr(&self) -> bool;
-
-    fn support_changing_quality(&self) -> bool;
-
-    fn latency_free(&self) -> bool;
-
-    fn is_hardware(&self) -> bool;
 }
 
 pub struct Encoder {
@@ -144,11 +137,7 @@ impl Encoder {
                 }),
                 Err(e) => {
                     log::error!("new hw encoder failed: {e:?}, clear config");
-                    #[cfg(target_os = "android")]
-                    crate::android::ffi::clear_codec_info();
-                    #[cfg(not(target_os = "android"))]
                     hbb_common::config::HwCodecConfig::clear_ram();
-                    Self::update(EncodingUpdate::Check);
                     *ENCODE_CODEC_FORMAT.lock().unwrap() = CodecFormat::VP9;
                     Err(e)
                 }
@@ -161,7 +150,6 @@ impl Encoder {
                 Err(e) => {
                     log::error!("new vram encoder failed: {e:?}, clear config");
                     hbb_common::config::HwCodecConfig::clear_vram();
-                    Self::update(EncodingUpdate::Check);
                     *ENCODE_CODEC_FORMAT.lock().unwrap() = CodecFormat::VP9;
                     Err(e)
                 }
@@ -247,13 +235,6 @@ impl Encoder {
             })
             .map(|(_, s)| s.prefer)
             .collect();
-        *USABLE_ENCODING.lock().unwrap() = Some(SupportedEncoding {
-            vp8: vp8_useable,
-            av1: av1_useable,
-            h264: h264_useable,
-            h265: h265_useable,
-            ..Default::default()
-        });
         // find the most frequent preference
         let mut counts = Vec::new();
         for pref in &preferences {
@@ -269,21 +250,13 @@ impl Encoder {
             .unwrap_or((PreferCodec::Auto.into(), 0));
         let preference = most_frequent.enum_value_or(PreferCodec::Auto);
 
-        // auto: h265 > h264 > vp9/vp8
+        #[allow(unused_mut)]
         let mut auto_codec = CodecFormat::VP9;
-        if h264_useable {
-            auto_codec = CodecFormat::H264;
-        }
-        if h265_useable {
-            auto_codec = CodecFormat::H265;
-        }
-        if auto_codec == CodecFormat::VP9 {
-            let mut system = System::new();
-            system.refresh_memory();
-            if vp8_useable && system.total_memory() <= 4 * 1024 * 1024 * 1024 {
-                // 4 Gb
-                auto_codec = CodecFormat::VP8
-            }
+        let mut system = System::new();
+        system.refresh_memory();
+        if vp8_useable && system.total_memory() <= 4 * 1024 * 1024 * 1024 {
+            // 4 Gb
+            auto_codec = CodecFormat::VP8
         }
 
         *format = match preference {
@@ -350,10 +323,6 @@ impl Encoder {
         encoding
     }
 
-    pub fn usable_encoding() -> Option<SupportedEncoding> {
-        USABLE_ENCODING.lock().unwrap().clone()
-    }
-
     pub fn set_fallback(config: &EncoderCfg) {
         let format = match config {
             EncoderCfg::VPX(vpx) => match vpx.codec {
@@ -363,14 +332,7 @@ impl Encoder {
             EncoderCfg::AOM(_) => CodecFormat::AV1,
             #[cfg(feature = "hwcodec")]
             EncoderCfg::HWRAM(hw) => {
-                let name = hw.name.to_lowercase();
-                if name.contains("vp8") {
-                    CodecFormat::VP8
-                } else if name.contains("vp9") {
-                    CodecFormat::VP9
-                } else if name.contains("av1") {
-                    CodecFormat::AV1
-                } else if name.contains("h264") {
+                if hw.name.to_lowercase().contains("h264") {
                     CodecFormat::H264
                 } else {
                     CodecFormat::H265
@@ -419,7 +381,7 @@ impl Encoder {
 impl Decoder {
     pub fn supported_decodings(
         id_for_perfer: Option<&str>,
-        _use_texture_render: bool,
+        _flutter: bool,
         _luid: Option<i64>,
         mark_unsupported: &Vec<CodecFormat>,
     ) -> SupportedDecoding {
@@ -454,7 +416,7 @@ impl Decoder {
             };
         }
         #[cfg(feature = "vram")]
-        if enable_vram_option() && _use_texture_render {
+        if enable_vram_option() && _flutter {
             decoding.ability_h264 |= if VRamDecoder::available(CodecFormat::H264, _luid).len() > 0 {
                 1
             } else {
@@ -841,7 +803,7 @@ impl Decoder {
 
 #[cfg(any(feature = "hwcodec", feature = "mediacodec"))]
 pub fn enable_hwcodec_option() -> bool {
-    if cfg!(windows) || cfg!(target_os = "linux") || cfg!(target_os = "android") {
+    if cfg!(windows) || cfg!(target_os = "linux") || cfg!(feature = "mediacodec") {
         if let Some(v) = Config2::get().options.get("enable-hwcodec") {
             return v != "N";
         }
@@ -868,15 +830,6 @@ pub enum Quality {
 impl Default for Quality {
     fn default() -> Self {
         Self::Balanced
-    }
-}
-
-impl Quality {
-    pub fn is_custom(&self) -> bool {
-        match self {
-            Quality::Custom(_) => true,
-            _ => false,
-        }
     }
 }
 

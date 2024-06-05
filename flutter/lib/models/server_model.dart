@@ -77,7 +77,7 @@ class ServerModel with ChangeNotifier {
   String get approveMode => _approveMode;
 
   setVerificationMethod(String method) async {
-    await bind.mainSetOption(key: kOptionVerificationMethod, value: method);
+    await bind.mainSetOption(key: "verification-method", value: method);
     /*
     if (method != kUsePermanentPassword) {
       await bind.mainSetOption(
@@ -99,7 +99,7 @@ class ServerModel with ChangeNotifier {
   }
 
   setApproveMode(String mode) async {
-    await bind.mainSetOption(key: kOptionApproveMode, value: mode);
+    await bind.mainSetOption(key: 'approve-mode', value: mode);
     /*
     if (mode != 'password') {
       await bind.mainSetOption(
@@ -125,8 +125,8 @@ class ServerModel with ChangeNotifier {
     /*
     // initital _hideCm at startup
     final verificationMethod =
-        bind.mainGetOptionSync(key: kOptionVerificationMethod);
-    final approveMode = bind.mainGetOptionSync(key: kOptionApproveMode);
+        bind.mainGetOptionSync(key: "verification-method");
+    final approveMode = bind.mainGetOptionSync(key: 'approve-mode');
     _hideCm = option2bool(
         'allow-hide-cm', bind.mainGetOptionSync(key: 'allow-hide-cm'));
     if (!(approveMode == 'password' &&
@@ -187,19 +187,18 @@ class ServerModel with ChangeNotifier {
     if (androidVersion < 30 ||
         !await AndroidPermissionManager.check(kRecordAudio)) {
       _audioOk = false;
-      bind.mainSetOption(key: kOptionEnableAudio, value: "N");
+      bind.mainSetOption(key: "enable-audio", value: "N");
     } else {
-      final audioOption = await bind.mainGetOption(key: kOptionEnableAudio);
+      final audioOption = await bind.mainGetOption(key: 'enable-audio');
       _audioOk = audioOption.isEmpty;
     }
 
     // file
     if (!await AndroidPermissionManager.check(kManageExternalStorage)) {
       _fileOk = false;
-      bind.mainSetOption(key: kOptionEnableFileTransfer, value: "N");
+      bind.mainSetOption(key: "enable-file-transfer", value: "N");
     } else {
-      final fileOption =
-          await bind.mainGetOption(key: kOptionEnableFileTransfer);
+      final fileOption = await bind.mainGetOption(key: 'enable-file-transfer');
       _fileOk = fileOption.isEmpty;
     }
 
@@ -210,10 +209,10 @@ class ServerModel with ChangeNotifier {
     var update = false;
     final temporaryPassword = await bind.mainGetTemporaryPassword();
     final verificationMethod =
-        await bind.mainGetOption(key: kOptionVerificationMethod);
+        await bind.mainGetOption(key: "verification-method");
     final temporaryPasswordLength =
         await bind.mainGetOption(key: "temporary-password-length");
-    final approveMode = await bind.mainGetOption(key: kOptionApproveMode);
+    final approveMode = await bind.mainGetOption(key: 'approve-mode');
     /*
     var hideCm = option2bool(
         'allow-hide-cm', await bind.mainGetOption(key: 'allow-hide-cm'));
@@ -284,8 +283,7 @@ class ServerModel with ChangeNotifier {
     }
 
     _audioOk = !_audioOk;
-    bind.mainSetOption(
-        key: kOptionEnableAudio, value: _audioOk ? defaultOptionYes : 'N');
+    bind.mainSetOption(key: "enable-audio", value: _audioOk ? '' : 'N');
     notifyListeners();
   }
 
@@ -304,9 +302,7 @@ class ServerModel with ChangeNotifier {
     }
 
     _fileOk = !_fileOk;
-    bind.mainSetOption(
-        key: kOptionEnableFileTransfer,
-        value: _fileOk ? defaultOptionYes : 'N');
+    bind.mainSetOption(key: "enable-file-transfer", value: _fileOk ? '' : 'N');
     notifyListeners();
   }
 
@@ -316,7 +312,7 @@ class ServerModel with ChangeNotifier {
     }
     if (_inputOk) {
       parent.target?.invokeMethod("stop_input");
-      bind.mainSetOption(key: kOptionEnableKeyboard, value: 'N');
+      bind.mainSetOption(key: "enable-keyboard", value: 'N');
     } else {
       if (parent.target != null) {
         /// the result of toggle-on depends on user actions in the settings page.
@@ -367,9 +363,6 @@ class ServerModel with ChangeNotifier {
       }
     } else {
       await checkRequestNotificationPermission();
-      if (!await AndroidPermissionManager.check(kManageExternalStorage)) {
-        await AndroidPermissionManager.request(kManageExternalStorage);
-      }
       final res = await parent.target?.dialogManager
           .show<bool>((setState, close, context) {
         submit() => close(true);
@@ -452,9 +445,7 @@ class ServerModel with ChangeNotifier {
         break;
       case "input":
         if (_inputOk != value) {
-          bind.mainSetOption(
-              key: kOptionEnableKeyboard,
-              value: value ? defaultOptionYes : 'N');
+          bind.mainSetOption(key: "enable-keyboard", value: value ? '' : 'N');
         }
         _inputOk = value;
         break;
@@ -559,60 +550,37 @@ class ServerModel with ChangeNotifier {
   }
 
   void showLoginDialog(Client client) {
-    showClientDialog(
-      client,
-      client.isFileTransfer ? "File Connection" : "Screen Connection",
-      'Do you accept?',
-      'android_new_connection_tip',
-      () => sendLoginResponse(client, false),
-      () => sendLoginResponse(client, true),
-    );
-  }
-
-  handleVoiceCall(Client client, bool accept) {
-    parent.target?.invokeMethod("cancel_notification", client.id);
-    bind.cmHandleIncomingVoiceCall(id: client.id, accept: accept);
-  }
-
-  showVoiceCallDialog(Client client) {
-    showClientDialog(
-      client,
-      'Voice call',
-      'Do you accept?',
-      'android_new_voice_call_tip',
-      () => handleVoiceCall(client, false),
-      () => handleVoiceCall(client, true),
-    );
-  }
-
-  showClientDialog(Client client, String title, String contentTitle,
-      String content, VoidCallback onCancel, VoidCallback onSubmit) {
     parent.target?.dialogManager.show((setState, close, context) {
       cancel() {
-        onCancel();
+        sendLoginResponse(client, false);
         close();
       }
 
       submit() {
-        onSubmit();
+        sendLoginResponse(client, true);
         close();
       }
 
       return CustomAlertDialog(
         title:
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(translate(title)),
-          IconButton(onPressed: close, icon: const Icon(Icons.close))
+          Text(translate(
+              client.isFileTransfer ? "File Connection" : "Screen Connection")),
+          IconButton(
+              onPressed: () {
+                close();
+              },
+              icon: const Icon(Icons.close))
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(translate(contentTitle)),
+            Text(translate("Do you accept?")),
             ClientInfo(client),
             Text(
-              translate(content),
+              translate("android_new_connection_tip"),
               style: Theme.of(globalKey.currentContext!).textTheme.bodyMedium,
             ),
           ],
@@ -708,14 +676,10 @@ class ServerModel with ChangeNotifier {
         _clients[index].inVoiceCall = client.inVoiceCall;
         _clients[index].incomingVoiceCall = client.incomingVoiceCall;
         if (client.incomingVoiceCall) {
-          if (isAndroid) {
-            showVoiceCallDialog(client);
-          } else {
-            // Has incoming phone call, let's set the window on top.
-            Future.delayed(Duration.zero, () {
-              windowOnTop(null);
-            });
-          }
+          // Has incoming phone call, let's set the window on top.
+          Future.delayed(Duration.zero, () {
+            windowOnTop(null);
+          });
         }
         notifyListeners();
       }

@@ -111,6 +111,8 @@ def make_parser():
              'Available: PrivacyMode. Special value is "ALL" and empty "". Default is empty.')
     parser.add_argument('--flutter', action='store_true',
                         help='Build flutter package', default=False)
+    parser.add_argument('--disable-flutter-texture-render', action='store_true',
+                        help='Build flutter package', default=False)
     parser.add_argument(
         '--hwcodec',
         action='store_true',
@@ -276,6 +278,8 @@ def get_features(args):
         features.append('vram')
     if args.flutter:
         features.append('flutter')
+        if not args.disable_flutter_texture_render:
+            features.append('flutter_texture_render')
     if args.unix_file_copy_paste:
         features.append('unix-file-copy-paste')
     print("features:", features)

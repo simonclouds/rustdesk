@@ -74,11 +74,9 @@ class _PeerTabPageState extends State<PeerTabPage>
   ];
   RelativeRect? mobileTabContextMenuPos;
 
-  final isOptVisiableFixed = isOptionFixed(kOptionPeerTabVisible);
-
   @override
   void initState() {
-    final uiType = bind.getLocalFlutterOption(k: kOptionPeerCardUiType);
+    final uiType = bind.getLocalFlutterOption(k: 'peer-card-ui-type');
     if (uiType != '') {
       peerCardUiType.value = int.parse(uiType) == 0
           ? PeerUiType.grid
@@ -87,7 +85,7 @@ class _PeerTabPageState extends State<PeerTabPage>
               : PeerUiType.list;
     }
     hideAbTagsPanel.value =
-        bind.mainGetLocalOption(key: kOptionHideAbTagsPanel).isNotEmpty;
+        bind.mainGetLocalOption(key: "hideAbTagsPanel").isNotEmpty;
     super.initState();
   }
 
@@ -175,13 +173,11 @@ class _PeerTabPageState extends State<PeerTabPage>
                         child: Icon(model.tabIcon(t), color: color)
                             .paddingSymmetric(horizontal: 4),
                       ).paddingSymmetric(horizontal: 4),
-                      onTap: isOptionFixed(kOptionPeerTabIndex)
-                          ? null
-                          : () async {
-                              await handleTabSelection(t);
-                              await bind.setLocalFlutterOption(
-                                  k: kOptionPeerTabIndex, v: t.toString());
-                            },
+                      onTap: () async {
+                        await handleTabSelection(t);
+                        await bind.setLocalFlutterOption(
+                            k: PeerTabModel.kPeerTabIndex, v: t.toString());
+                      },
                       onHover: (value) => hover.value = value,
                     ),
                   )));
@@ -269,22 +265,17 @@ class _PeerTabPageState extends State<PeerTabPage>
       if (!model.isEnabled[i]) continue;
       items.add(PopupMenuItem(
         height: kMinInteractiveDimension * 0.8,
-        onTap: isOptVisiableFixed
-            ? null
-            : () => model.setTabVisible(i, !model.isVisibleEnabled[i]),
-        enabled: !isOptVisiableFixed,
+        onTap: () => model.setTabVisible(i, !model.isVisibleEnabled[i]),
         child: Row(
           children: [
             Checkbox(
                 value: model.isVisibleEnabled[i],
-                onChanged: isOptVisiableFixed
-                    ? null
-                    : (_) {
-                        model.setTabVisible(i, !model.isVisibleEnabled[i]);
-                        if (Navigator.canPop(context)) {
-                          Navigator.pop(context);
-                        }
-                      }),
+                onChanged: (_) {
+                  model.setTabVisible(i, !model.isVisibleEnabled[i]);
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                }),
             Expanded(child: Text(model.tabTooltip(i))),
           ],
         ),
@@ -341,10 +332,8 @@ class _PeerTabPageState extends State<PeerTabPage>
           currentValue: model.isVisibleEnabled[tabIndex],
           setter: (show) async {
             model.setTabVisible(tabIndex, show);
-            // Do not hide the current menu (checkbox)
-            // cancelFunc();
-          },
-          enabled: (!isOptVisiableFixed).obs));
+            cancelFunc();
+          }));
     }
     return mod_menu.PopupMenu(
         items: menu
@@ -540,7 +529,7 @@ class _PeerTabPageState extends State<PeerTabPage>
   Widget _toggleTags() {
     return _hoverAction(
         context: context,
-        toolTip: translate('Toggle Tags'),
+        toolTip: translate('Toggle tags'),
         hoverableWhenfalse: hideAbTagsPanel,
         child: Icon(
           Icons.tag_rounded,
@@ -548,8 +537,7 @@ class _PeerTabPageState extends State<PeerTabPage>
         ),
         onTap: () async {
           await bind.mainSetLocalOption(
-              key: kOptionHideAbTagsPanel,
-              value: hideAbTagsPanel.value ? defaultOptionNo : "Y");
+              key: "hideAbTagsPanel", value: hideAbTagsPanel.value ? "" : "Y");
           hideAbTagsPanel.value = !hideAbTagsPanel.value;
         });
   }
@@ -811,22 +799,16 @@ class _PeerViewDropdownState extends State<PeerViewDropdown> {
                           style: style),
                       e,
                       peerCardUiType.value,
-                      dense: true,
-                      isOptionFixed(kOptionPeerCardUiType)
-                          ? null
-                          : (PeerUiType? v) async {
-                              if (v != null) {
-                                peerCardUiType.value = v;
-                                setState(() {});
-                                await bind.setLocalFlutterOption(
-                                  k: kOptionPeerCardUiType,
-                                  v: peerCardUiType.value.index.toString(),
-                                );
-                                if (Navigator.canPop(context)) {
-                                  Navigator.pop(context);
-                                }
-                              }
-                            }),
+                      dense: true, (PeerUiType? v) async {
+                    if (v != null) {
+                      peerCardUiType.value = v;
+                      setState(() {});
+                      await bind.setLocalFlutterOption(
+                        k: "peer-card-ui-type",
+                        v: peerCardUiType.value.index.toString(),
+                      );
+                    }
+                  }),
                 ),
               ))));
     }
@@ -870,7 +852,7 @@ class _PeerSortDropdownState extends State<PeerSortDropdown> {
     if (!PeerSortType.values.contains(peerSort.value)) {
       peerSort.value = PeerSortType.remoteId;
       bind.setLocalFlutterOption(
-        k: kOptionPeerSorting,
+        k: "peer-sorting",
         v: peerSort.value,
       );
     }
@@ -900,7 +882,7 @@ class _PeerSortDropdownState extends State<PeerSortDropdown> {
                     if (v != null) {
                       peerSort.value = v;
                       await bind.setLocalFlutterOption(
-                        k: kOptionPeerSorting,
+                        k: "peer-sorting",
                         v: peerSort.value,
                       );
                     }

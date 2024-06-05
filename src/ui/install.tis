@@ -47,7 +47,7 @@ class Install: Reactor.Component {
     }
 
     event click $(#agreement) {
-        view.open_url("http://rustdesk.com/privacy");
+        view.open_url("https://www.baidu.com");
     }
 
     event click $(#submit) {
@@ -58,7 +58,7 @@ class Install: Reactor.Component {
             args += "startmenu ";
         }
         if ($(#desktopicon).value) {
-            args += "desktopicon ";
+            args += "desktopicon "; 
         }
         view.install_me(args, install_path);
     }

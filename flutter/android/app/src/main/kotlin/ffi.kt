@@ -18,5 +18,4 @@ object FFI {
     external fun translateLocale(localeName: String, input: String): String
     external fun refreshScreen()
     external fun setFrameRawEnable(name: String, value: Boolean)
-    external fun setCodecInfo(info: String)
 }

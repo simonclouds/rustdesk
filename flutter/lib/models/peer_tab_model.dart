@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:get/get.dart';
@@ -23,6 +22,9 @@ class PeerTabModel with ChangeNotifier {
   int get currentTab => _currentTab;
   int _currentTab = 0; // index in tabNames
   static const int maxTabCount = 5;
+  static const String kPeerTabIndex = 'peer-tab-index';
+  static const String kPeerTabOrder = 'peer-tab-order';
+  static const String kPeerTabVisible = 'peer-tab-visible';
   static const List<String> tabNames = [
     'Recent sessions',
     'Favorites',
@@ -42,7 +44,7 @@ class PeerTabModel with ChangeNotifier {
     true,
     !isWeb,
     !(bind.isDisableAb() || bind.isDisableAccount()),
-    !(bind.isDisableGroupPanel() || bind.isDisableAccount()),
+    !bind.isDisableAccount(),
   ]);
   final List<bool> _isVisible = List.filled(maxTabCount, true, growable: false);
   List<bool> get isVisibleEnabled => () {
@@ -70,7 +72,7 @@ class PeerTabModel with ChangeNotifier {
   PeerTabModel(this.parent) {
     // visible
     try {
-      final option = bind.getLocalFlutterOption(k: kOptionPeerTabVisible);
+      final option = bind.getLocalFlutterOption(k: kPeerTabVisible);
       if (option.isNotEmpty) {
         List<dynamic> decodeList = jsonDecode(option);
         if (decodeList.length == _isVisible.length) {
@@ -86,7 +88,7 @@ class PeerTabModel with ChangeNotifier {
     }
     // order
     try {
-      final option = bind.getLocalFlutterOption(k: kOptionPeerTabOrder);
+      final option = bind.getLocalFlutterOption(k: kPeerTabOrder);
       if (option.isNotEmpty) {
         List<dynamic> decodeList = jsonDecode(option);
         if (decodeList.length == maxTabCount) {
@@ -110,7 +112,7 @@ class PeerTabModel with ChangeNotifier {
     }
     // init currentTab
     _currentTab =
-        int.tryParse(bind.getLocalFlutterOption(k: kOptionPeerTabIndex)) ?? 0;
+        int.tryParse(bind.getLocalFlutterOption(k: kPeerTabIndex)) ?? 0;
     if (_currentTab < 0 || _currentTab >= maxTabCount) {
       _currentTab = 0;
     }
@@ -220,7 +222,7 @@ class PeerTabModel with ChangeNotifier {
         }
         try {
           bind.setLocalFlutterOption(
-              k: kOptionPeerTabVisible, v: jsonEncode(_isVisible));
+              k: kPeerTabVisible, v: jsonEncode(_isVisible));
         } catch (_) {}
         notifyListeners();
       }
@@ -256,7 +258,7 @@ class PeerTabModel with ChangeNotifier {
       for (int i = 0; i < list.length; i++) {
         orders[i] = list[i];
       }
-      bind.setLocalFlutterOption(k: kOptionPeerTabOrder, v: jsonEncode(orders));
+      bind.setLocalFlutterOption(k: kPeerTabOrder, v: jsonEncode(orders));
       notifyListeners();
     }
   }

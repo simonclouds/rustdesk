@@ -44,7 +44,6 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
   var _onlyWhiteList = false;
   var _enableDirectIPAccess = false;
   var _enableRecordSession = false;
-  var _enableHardwareCodec = false;
   var _autoRecordIncomingSession = false;
   var _allowAutoDisconnect = false;
   var _localIP = "";
@@ -87,7 +86,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
       }
 
       final enableAbrRes = option2bool(
-          kOptionEnableAbr, await bind.mainGetOption(key: kOptionEnableAbr));
+          "enable-abr", await bind.mainGetOption(key: "enable-abr"));
       if (enableAbrRes != _enableAbr) {
         update = true;
         _enableAbr = enableAbrRes;
@@ -100,37 +99,30 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
         _denyLANDiscovery = denyLanDiscovery;
       }
 
-      final onlyWhiteList = (await bind.mainGetOption(key: kOptionWhitelist)) !=
-          defaultOptionWhitelist;
+      final onlyWhiteList =
+          (await bind.mainGetOption(key: 'whitelist')).isNotEmpty;
       if (onlyWhiteList != _onlyWhiteList) {
         update = true;
         _onlyWhiteList = onlyWhiteList;
       }
 
-      final enableDirectIPAccess = option2bool(kOptionDirectServer,
-          await bind.mainGetOption(key: kOptionDirectServer));
+      final enableDirectIPAccess = option2bool(
+          'direct-server', await bind.mainGetOption(key: 'direct-server'));
       if (enableDirectIPAccess != _enableDirectIPAccess) {
         update = true;
         _enableDirectIPAccess = enableDirectIPAccess;
       }
 
-      final enableRecordSession = option2bool(kOptionEnableRecordSession,
-          await bind.mainGetOption(key: kOptionEnableRecordSession));
+      final enableRecordSession = option2bool('enable-record-session',
+          await bind.mainGetOption(key: 'enable-record-session'));
       if (enableRecordSession != _enableRecordSession) {
         update = true;
         _enableRecordSession = enableRecordSession;
       }
 
-      final enableHardwareCodec = option2bool(kOptionEnableHwcodec,
-          await bind.mainGetOption(key: kOptionEnableHwcodec));
-      if (_enableHardwareCodec != enableHardwareCodec) {
-        update = true;
-        _enableHardwareCodec = enableHardwareCodec;
-      }
-
       final autoRecordIncomingSession = option2bool(
-          kOptionAllowAutoRecordIncoming,
-          await bind.mainGetOption(key: kOptionAllowAutoRecordIncoming));
+          'allow-auto-record-incoming',
+          await bind.mainGetOption(key: 'allow-auto-record-incoming'));
       if (autoRecordIncomingSession != _autoRecordIncomingSession) {
         update = true;
         _autoRecordIncomingSession = autoRecordIncomingSession;
@@ -143,7 +135,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
       }
 
       final directAccessPort =
-          await bind.mainGetOption(key: kOptionDirectAccessPort);
+          await bind.mainGetOption(key: 'direct-access-port');
       if (directAccessPort != _directAccessPort) {
         update = true;
         _directAccessPort = directAccessPort;
@@ -161,15 +153,15 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
         _buildDate = buildDate;
       }
 
-      final allowAutoDisconnect = option2bool(kOptionAllowAutoDisconnect,
-          await bind.mainGetOption(key: kOptionAllowAutoDisconnect));
+      final allowAutoDisconnect = option2bool('allow-auto-disconnect',
+          await bind.mainGetOption(key: 'allow-auto-disconnect'));
       if (allowAutoDisconnect != _allowAutoDisconnect) {
         update = true;
         _allowAutoDisconnect = allowAutoDisconnect;
       }
 
       final autoDisconnectTimeout =
-          await bind.mainGetOption(key: kOptionAutoDisconnectTimeout);
+          await bind.mainGetOption(key: 'auto-disconnect-timeout');
       if (autoDisconnectTimeout != _autoDisconnectTimeout) {
         update = true;
         _autoDisconnectTimeout = autoDisconnectTimeout;
@@ -257,18 +249,16 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
       SettingsTile.switchTile(
         title: Text(translate('Deny LAN discovery')),
         initialValue: _denyLANDiscovery,
-        onToggle: isOptionFixed(kOptionEnableLanDiscovery)
-            ? null
-            : (v) async {
-                await bind.mainSetOption(
-                    key: kOptionEnableLanDiscovery,
-                    value: bool2option(kOptionEnableLanDiscovery, !v));
-                final newValue = !option2bool(kOptionEnableLanDiscovery,
-                    await bind.mainGetOption(key: kOptionEnableLanDiscovery));
-                setState(() {
-                  _denyLANDiscovery = newValue;
-                });
-              },
+        onToggle: (v) async {
+          await bind.mainSetOption(
+              key: "enable-lan-discovery",
+              value: bool2option("enable-lan-discovery", !v));
+          final newValue = !option2bool('enable-lan-discovery',
+              await bind.mainGetOption(key: 'enable-lan-discovery'));
+          setState(() {
+            _denyLANDiscovery = newValue;
+          });
+        },
       ),
       SettingsTile.switchTile(
         title: Row(children: [
@@ -283,8 +273,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
         onToggle: (_) async {
           update() async {
             final onlyWhiteList =
-                (await bind.mainGetOption(key: kOptionWhitelist)) !=
-                    defaultOptionWhitelist;
+                (await bind.mainGetOption(key: 'whitelist')).isNotEmpty;
             if (onlyWhiteList != _onlyWhiteList) {
               setState(() {
                 _onlyWhiteList = onlyWhiteList;
@@ -298,34 +287,26 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
       SettingsTile.switchTile(
         title: Text('${translate('Adaptive bitrate')} (beta)'),
         initialValue: _enableAbr,
-        onToggle: isOptionFixed(kOptionEnableAbr)
-            ? null
-            : (v) async {
-                await bind.mainSetOption(
-                    key: kOptionEnableAbr, value: v ? defaultOptionYes : "N");
-                final newValue =
-                    await bind.mainGetOption(key: kOptionEnableAbr) != "N";
-                setState(() {
-                  _enableAbr = newValue;
-                });
-              },
+        onToggle: (v) async {
+          await bind.mainSetOption(key: "enable-abr", value: v ? "" : "N");
+          final newValue = await bind.mainGetOption(key: "enable-abr") != "N";
+          setState(() {
+            _enableAbr = newValue;
+          });
+        },
       ),
       SettingsTile.switchTile(
         title: Text(translate('Enable recording session')),
         initialValue: _enableRecordSession,
-        onToggle: isOptionFixed(kOptionEnableRecordSession)
-            ? null
-            : (v) async {
-                await bind.mainSetOption(
-                    key: kOptionEnableRecordSession,
-                    value: v ? defaultOptionYes : "N");
-                final newValue =
-                    await bind.mainGetOption(key: kOptionEnableRecordSession) !=
-                        "N";
-                setState(() {
-                  _enableRecordSession = newValue;
-                });
-              },
+        onToggle: (v) async {
+          await bind.mainSetOption(
+              key: "enable-record-session", value: v ? "" : "N");
+          final newValue =
+              await bind.mainGetOption(key: "enable-record-session") != "N";
+          setState(() {
+            _enableRecordSession = newValue;
+          });
+        },
       ),
       SettingsTile.switchTile(
         title: Row(
@@ -352,27 +333,21 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                         Icons.edit,
                         size: 20,
                       ),
-                      onPressed: isOptionFixed(kOptionDirectAccessPort)
-                          ? null
-                          : () async {
-                              final port = await changeDirectAccessPort(
-                                  _localIP, _directAccessPort);
-                              setState(() {
-                                _directAccessPort = port;
-                              });
-                            }))
+                      onPressed: () async {
+                        final port = await changeDirectAccessPort(
+                            _localIP, _directAccessPort);
+                        setState(() {
+                          _directAccessPort = port;
+                        });
+                      }))
             ]),
         initialValue: _enableDirectIPAccess,
-        onToggle: isOptionFixed(kOptionDirectServer)
-            ? null
-            : (_) async {
-                _enableDirectIPAccess = !_enableDirectIPAccess;
-                String value =
-                    bool2option(kOptionDirectServer, _enableDirectIPAccess);
-                await bind.mainSetOption(
-                    key: kOptionDirectServer, value: value);
-                setState(() {});
-              },
+        onToggle: (_) async {
+          _enableDirectIPAccess = !_enableDirectIPAccess;
+          String value = bool2option('direct-server', _enableDirectIPAccess);
+          await bind.mainSetOption(key: 'direct-server', value: value);
+          setState(() {});
+        },
       ),
       SettingsTile.switchTile(
         title: Row(
@@ -399,27 +374,22 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                         Icons.edit,
                         size: 20,
                       ),
-                      onPressed: isOptionFixed(kOptionAutoDisconnectTimeout)
-                          ? null
-                          : () async {
-                              final timeout = await changeAutoDisconnectTimeout(
-                                  _autoDisconnectTimeout);
-                              setState(() {
-                                _autoDisconnectTimeout = timeout;
-                              });
-                            }))
+                      onPressed: () async {
+                        final timeout = await changeAutoDisconnectTimeout(
+                            _autoDisconnectTimeout);
+                        setState(() {
+                          _autoDisconnectTimeout = timeout;
+                        });
+                      }))
             ]),
         initialValue: _allowAutoDisconnect,
-        onToggle: isOptionFixed(kOptionAllowAutoDisconnect)
-            ? null
-            : (_) async {
-                _allowAutoDisconnect = !_allowAutoDisconnect;
-                String value = bool2option(
-                    kOptionAllowAutoDisconnect, _allowAutoDisconnect);
-                await bind.mainSetOption(
-                    key: kOptionAllowAutoDisconnect, value: value);
-                setState(() {});
-              },
+        onToggle: (_) async {
+          _allowAutoDisconnect = !_allowAutoDisconnect;
+          String value =
+              bool2option('allow-auto-disconnect', _allowAutoDisconnect);
+          await bind.mainSetOption(key: 'allow-auto-disconnect', value: value);
+          setState(() {});
+        },
       )
     ];
     if (_hasIgnoreBattery) {
@@ -543,26 +513,6 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             },
           )
         ]),
-        if (isAndroid)
-          SettingsSection(title: Text(translate('Hardware Codec')), tiles: [
-            SettingsTile.switchTile(
-              title: Text(translate('Enable hardware codec')),
-              initialValue: _enableHardwareCodec,
-              onToggle: isOptionFixed(kOptionEnableHwcodec)
-                  ? null
-                  : (v) async {
-                      await bind.mainSetOption(
-                          key: kOptionEnableHwcodec,
-                          value: v ? defaultOptionYes : "N");
-                      final newValue =
-                          await bind.mainGetOption(key: kOptionEnableHwcodec) !=
-                              "N";
-                      setState(() {
-                        _enableHardwareCodec = newValue;
-                      });
-                    },
-            ),
-          ]),
         if (isAndroid && !outgoingOnly)
           SettingsSection(
             title: Text(translate("Recording")),
@@ -577,21 +527,18 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                         child: Text("${translate("Directory")}: ${data.data}")),
                     future: bind.mainVideoSaveDirectory(root: false)),
                 initialValue: _autoRecordIncomingSession,
-                onToggle: isOptionFixed(kOptionAllowAutoRecordIncoming)
-                    ? null
-                    : (v) async {
-                        await bind.mainSetOption(
-                            key: kOptionAllowAutoRecordIncoming,
-                            value:
-                                bool2option(kOptionAllowAutoRecordIncoming, v));
-                        final newValue = option2bool(
-                            kOptionAllowAutoRecordIncoming,
-                            await bind.mainGetOption(
-                                key: kOptionAllowAutoRecordIncoming));
-                        setState(() {
-                          _autoRecordIncomingSession = newValue;
-                        });
-                      },
+                onToggle: (v) async {
+                  await bind.mainSetOption(
+                      key: "allow-auto-record-incoming",
+                      value: bool2option("allow-auto-record-incoming", v));
+                  final newValue = option2bool(
+                      'allow-auto-record-incoming',
+                      await bind.mainGetOption(
+                          key: 'allow-auto-record-incoming'));
+                  setState(() {
+                    _autoRecordIncomingSession = newValue;
+                  });
+                },
               ),
             ],
           ),
@@ -690,32 +637,29 @@ void showServerSettings(OverlayDialogManager dialogManager) async {
 void showLanguageSettings(OverlayDialogManager dialogManager) async {
   try {
     final langs = json.decode(await bind.mainGetLangs()) as List<dynamic>;
-    var lang = bind.mainGetLocalOption(key: kCommConfKeyLang);
+    var lang = bind.mainGetLocalOption(key: "lang");
     dialogManager.show((setState, close, context) {
       setLang(v) async {
         if (lang != v) {
           setState(() {
             lang = v;
           });
-          await bind.mainSetLocalOption(key: kCommConfKeyLang, value: v);
+          await bind.mainSetLocalOption(key: "lang", value: v);
           HomePage.homeKey.currentState?.refreshPages();
           Future.delayed(Duration(milliseconds: 200), close);
         }
       }
 
-      final isOptFixed = isOptionFixed(kCommConfKeyLang);
       return CustomAlertDialog(
         content: Column(
           children: [
-                getRadio(Text(translate('Default')), defaultOptionLang, lang,
-                    isOptFixed ? null : setLang),
+                getRadio(Text(translate('Default')), '', lang, setLang),
                 Divider(color: MyTheme.border),
               ] +
               langs.map((e) {
                 final key = e[0] as String;
                 final name = e[1] as String;
-                return getRadio(Text(translate(name)), key, lang,
-                    isOptFixed ? null : setLang);
+                return getRadio(Text(translate(name)), key, lang, setLang);
               }).toList(),
         ),
       );
@@ -739,15 +683,13 @@ void showThemeSettings(OverlayDialogManager dialogManager) async {
       }
     }
 
-    final isOptFixed = isOptionFixed(kCommConfKeyTheme);
     return CustomAlertDialog(
       content: Column(children: [
-        getRadio(Text(translate('Light')), ThemeMode.light, themeMode,
-            isOptFixed ? null : setTheme),
-        getRadio(Text(translate('Dark')), ThemeMode.dark, themeMode,
-            isOptFixed ? null : setTheme),
+        getRadio(
+            Text(translate('Light')), ThemeMode.light, themeMode, setTheme),
+        getRadio(Text(translate('Dark')), ThemeMode.dark, themeMode, setTheme),
         getRadio(Text(translate('Follow System')), ThemeMode.system, themeMode,
-            isOptFixed ? null : setTheme)
+            setTheme)
       ]),
     );
   }, backDismiss: true, clickMaskDismiss: true);
@@ -835,14 +777,11 @@ class __DisplayPageState extends State<_DisplayPage> {
                 _RadioEntry('Scale original', kRemoteViewStyleOriginal),
                 _RadioEntry('Scale adaptive', kRemoteViewStyleAdaptive)
               ],
-              getter: () =>
-                  bind.mainGetUserDefaultOption(key: kOptionViewStyle),
-              asyncSetter: isOptionFixed(kOptionViewStyle)
-                  ? null
-                  : (value) async {
-                      await bind.mainSetUserDefaultOption(
-                          key: kOptionViewStyle, value: value);
-                    },
+              getter: () => bind.mainGetUserDefaultOption(key: 'view_style'),
+              asyncSetter: (value) async {
+                await bind.mainSetUserDefaultOption(
+                    key: 'view_style', value: value);
+              },
             ),
             _getPopupDialogRadioEntry(
               title: 'Default Image Quality',
@@ -853,19 +792,16 @@ class __DisplayPageState extends State<_DisplayPage> {
                 _RadioEntry('Custom', kRemoteImageQualityCustom),
               ],
               getter: () {
-                final v =
-                    bind.mainGetUserDefaultOption(key: kOptionImageQuality);
+                final v = bind.mainGetUserDefaultOption(key: 'image_quality');
                 showCustomImageQuality.value = v == kRemoteImageQualityCustom;
                 return v;
               },
-              asyncSetter: isOptionFixed(kOptionImageQuality)
-                  ? null
-                  : (value) async {
-                      await bind.mainSetUserDefaultOption(
-                          key: kOptionImageQuality, value: value);
-                      showCustomImageQuality.value =
-                          value == kRemoteImageQualityCustom;
-                    },
+              asyncSetter: (value) async {
+                await bind.mainSetUserDefaultOption(
+                    key: 'image_quality', value: value);
+                showCustomImageQuality.value =
+                    value == kRemoteImageQualityCustom;
+              },
               tail: customImageQualitySetting(),
               showTail: showCustomImageQuality,
               notCloseValue: kRemoteImageQualityCustom,
@@ -874,13 +810,11 @@ class __DisplayPageState extends State<_DisplayPage> {
               title: 'Default Codec',
               list: codecList,
               getter: () =>
-                  bind.mainGetUserDefaultOption(key: kOptionCodecPreference),
-              asyncSetter: isOptionFixed(kOptionCodecPreference)
-                  ? null
-                  : (value) async {
-                      await bind.mainSetUserDefaultOption(
-                          key: kOptionCodecPreference, value: value);
-                    },
+                  bind.mainGetUserDefaultOption(key: 'codec-preference'),
+              asyncSetter: (value) async {
+                await bind.mainSetUserDefaultOption(
+                    key: 'codec-preference', value: value);
+              },
             ),
           ],
         ),
@@ -895,17 +829,13 @@ class __DisplayPageState extends State<_DisplayPage> {
 
   SettingsTile otherRow(String label, String key) {
     final value = bind.mainGetUserDefaultOption(key: key) == 'Y';
-    final isOptFixed = isOptionFixed(key);
     return SettingsTile.switchTile(
       initialValue: value,
       title: Text(translate(label)),
-      onToggle: isOptFixed
-          ? null
-          : (b) async {
-              await bind.mainSetUserDefaultOption(
-                  key: key, value: b ? 'Y' : defaultOptionNo);
-              setState(() {});
-            },
+      onToggle: (b) async {
+        await bind.mainSetUserDefaultOption(key: key, value: b ? 'Y' : '');
+        setState(() {});
+      },
     );
   }
 }
@@ -923,7 +853,7 @@ _getPopupDialogRadioEntry({
   required String title,
   required List<_RadioEntry> list,
   required _RadioEntryGetter getter,
-  required _RadioEntrySetter? asyncSetter,
+  required _RadioEntrySetter asyncSetter,
   Widget? tail,
   RxBool? showTail,
   String? notCloseValue,
@@ -943,23 +873,21 @@ _getPopupDialogRadioEntry({
 
   void showDialog() async {
     gFFI.dialogManager.show((setState, close, context) {
-      final onChanged = asyncSetter == null
-          ? null
-          : (String? value) async {
-              if (value == null) return;
-              await asyncSetter(value);
-              init();
-              if (value != notCloseValue) {
-                close();
-              }
-            };
+      onChanged(String? value) async {
+        if (value == null) return;
+        await asyncSetter(value);
+        init();
+        if (value != notCloseValue) {
+          close();
+        }
+      }
 
       return CustomAlertDialog(
           content: Obx(
         () => Column(children: [
           ...list
               .map((e) => getRadio(Text(translate(e.label)), e.value,
-                  groupValue.value, onChanged))
+                  groupValue.value, (String? value) => onChanged(value)))
               .toList(),
           Offstage(
             offstage:

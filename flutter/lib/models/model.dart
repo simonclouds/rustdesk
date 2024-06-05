@@ -112,7 +112,6 @@ class FfiModel with ChangeNotifier {
   RxBool waitForImageDialogShow = true.obs;
   Timer? waitForImageTimer;
   RxBool waitForFirstImage = true.obs;
-  bool isRefreshing = false;
 
   Rect? get rect => _rect;
   bool get isOriginalResolutionSet =>
@@ -245,7 +244,7 @@ class FfiModel with ChangeNotifier {
     handleMsgBox({
       'type': 'success',
       'title': 'Successful',
-      'text': kMsgboxTextWaitingForImage,
+      'text': 'Connected, waiting for image...',
       'link': '',
     }, sessionId, peerId);
     updatePrivacyMode(data.updatePrivacyMode, sessionId, peerId);
@@ -381,27 +380,16 @@ class FfiModel with ChangeNotifier {
         _handleSyncPeerOption(evt, peerId);
       } else if (name == 'follow_current_display') {
         handleFollowCurrentDisplay(evt, sessionId, peerId);
-      } else if (name == 'use_texture_render') {
-        _handleUseTextureRender(evt, sessionId, peerId);
       } else {
         debugPrint('Unknown event name: $name');
       }
     };
   }
 
-  _handleUseTextureRender(
-      Map<String, dynamic> evt, SessionID sessionId, String peerId) {
-    parent.target?.imageModel.setUseTextureRender(evt['v'] == 'Y');
-    waitForFirstImage.value = true;
-    isRefreshing = true;
-    showConnectedWaitingForImage(parent.target!.dialogManager, sessionId,
-        'success', 'Successful', kMsgboxTextWaitingForImage);
-  }
-
   _handleSyncPeerOption(Map<String, dynamic> evt, String peer) {
     final k = evt['k'];
     final v = evt['v'];
-    if (k == kOptionToggleViewOnly) {
+    if (k == kOptionViewOnly) {
       setViewOnly(peer, v as bool);
     } else if (k == 'keyboard_mode') {
       parent.target?.inputModel.updateKeyboardMode();
@@ -584,7 +572,7 @@ class FfiModel with ChangeNotifier {
       showElevationError(sessionId, type, title, text, dialogManager);
     } else if (type == 'relay-hint' || type == 'relay-hint2') {
       showRelayHintDialog(sessionId, type, title, text, dialogManager, peerId);
-    } else if (text == kMsgboxTextWaitingForImage) {
+    } else if (text == 'Connected, waiting for image...') {
       showConnectedWaitingForImage(dialogManager, sessionId, type, title, text);
     } else if (title == 'Privacy mode') {
       final hasRetry = evt['hasRetry'] == 'true';
@@ -679,7 +667,7 @@ class FfiModel with ChangeNotifier {
     );
     waitForImageDialogShow.value = true;
     waitForImageTimer = Timer(Duration(milliseconds: 1500), () {
-      if (waitForFirstImage.isTrue && !isRefreshing) {
+      if (waitForFirstImage.isTrue) {
         bind.sessionInputOsPassword(sessionId: sessionId, value: '');
       }
     });
@@ -777,7 +765,7 @@ class FfiModel with ChangeNotifier {
       _touchMode = true;
     } else {
       _touchMode = await bind.sessionGetOption(
-              sessionId: sessionId, arg: kOptionTouchMode) !=
+              sessionId: sessionId, arg: 'touch-mode') !=
           '';
     }
     if (connType == ConnType.fileTransfer) {
@@ -797,7 +785,6 @@ class FfiModel with ChangeNotifier {
       if (displays.isNotEmpty) {
         _reconnects = 1;
         waitForFirstImage.value = true;
-        isRefreshing = false;
       }
       Map<String, dynamic> features = json.decode(evt['features']);
       _pi.features.privacyMode = features['privacy_mode'] == 1;
@@ -810,7 +797,7 @@ class FfiModel with ChangeNotifier {
       setViewOnly(
           peerId,
           bind.sessionGetToggleOptionSync(
-              sessionId: sessionId, arg: kOptionToggleViewOnly));
+              sessionId: sessionId, arg: kOptionViewOnly));
     }
     if (connType == ConnType.defaultConn) {
       final platformAdditions = evt['platform_additions'];
@@ -1169,8 +1156,6 @@ class ImageModel with ChangeNotifier {
 
   late final SessionID sessionId;
 
-  bool _useTextureRender = false;
-
   WeakReference<FFI> parent;
 
   final List<Function(String)> callbacksOnFirstImage = [];
@@ -1178,8 +1163,6 @@ class ImageModel with ChangeNotifier {
   ImageModel(this.parent) {
     sessionId = parent.target!.sessionId;
   }
-
-  get useTextureRender => _useTextureRender;
 
   addCallbackOnFirstImage(Function(String) cb) => callbacksOnFirstImage.add(cb);
 
@@ -1220,8 +1203,11 @@ class ImageModel with ChangeNotifier {
       if (parent.target != null) {
         await initializeCursorAndCanvas(parent.target!);
       }
+      if (parent.target?.ffiModel.isPeerAndroid ?? false) {
+        bind.sessionSetViewStyle(sessionId: sessionId, value: 'adaptive');
+        parent.target?.canvasModel.updateViewStyle();
+      }
     }
-    _image?.dispose();
     _image = image;
     if (image != null) notifyListeners();
   }
@@ -1244,24 +1230,6 @@ class ImageModel with ChangeNotifier {
     final xscale = size.width / _image!.width;
     final yscale = size.height / _image!.height;
     return min(xscale, yscale) / 1.5;
-  }
-
-  updateUserTextureRender() {
-    final preValue = _useTextureRender;
-    _useTextureRender = isDesktop && bind.mainGetUseTextureRender();
-    if (preValue != _useTextureRender) {
-      notifyListeners();
-    }
-  }
-
-  setUseTextureRender(bool value) {
-    _useTextureRender = value;
-    notifyListeners();
-  }
-
-  void disposeImage() {
-    _image?.dispose();
-    _image = null;
   }
 }
 
@@ -1699,15 +1667,13 @@ const _forbiddenCursorPng =
 const _defaultCursorPng =
     'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAARzQklUCAgICHwIZIgAAAFmSURBVFiF7dWxSlxREMbx34QFDRowYBchZSxSCWlMCOwD5FGEFHap06UI7KPsAyyEEIQFqxRaCqYTsqCJFsKkuAeRXb17wrqV918dztw55zszc2fo6Oh47MR/e3zO1/iAHWmznHKGQwx9ip/LEbCfazbsoY8j/JLOhcC6sCW9wsjEwJf483AC9nPNc1+lFRwI13d+l3rYFS799rFGxJMqARv2pBXh+72XQ7gWvklPS7TmMl9Ak/M+DqrENvxAv/guKKApuKPWl0/TROK4+LbSqzhuB+OZ3fRSeFPWY+Fkyn56Y29hfgTSpnQ+s98cvorVey66uPlNFxKwZOYLCGfCs5n9NMYVrsp6mvXSoFqpqYFDvMBkStgJJe93dZOwVXxbqUnBENulydSReqUrDhcX0PT2EXarBYS3GNXMhboinBgIl9K71kg0L3+PvyYGdVpruT2MwrF0iotiXfIwus0Dj+OOjo6Of+e7ab74RkpgAAAAAElFTkSuQmCC';
 
-const kPreForbiddenCursorId = -2;
 final preForbiddenCursor = PredefinedCursor(
   png: _forbiddenCursorPng,
-  id: kPreForbiddenCursorId,
+  id: -2,
 );
-const kPreDefaultCursorId = -1;
 final preDefaultCursor = PredefinedCursor(
   png: _defaultCursorPng,
-  id: kPreDefaultCursorId,
+  id: -1,
   hotxGetter: (double w) => w / 2,
   hotyGetter: (double h) => h / 2,
 );
@@ -1732,22 +1698,13 @@ class PredefinedCursor {
   init() {
     _image2 = img2.decodePng(base64Decode(png));
     if (_image2 != null) {
-      // The png type of forbidden cursor image is `PngColorType.indexed`.
-      if (isWindows && id == kPreForbiddenCursorId) {
-        _image2 = _image2!.convert(format: img2.Format.uint8, numChannels: 4);
-      }
-
       () async {
         final defaultImg = _image2!;
         // This function is called only one time, no need to care about the performance.
         Uint8List data = defaultImg.getBytes(order: img2.ChannelOrder.rgba);
-        _image?.dispose();
         _image = await img.decodeImageFromPixels(
             data, defaultImg.width, defaultImg.height, ui.PixelFormat.rgba8888);
-        if (_image == null) {
-          print("decodeImageFromPixels failed, pre-defined cursor $id");
-          return;
-        }
+
         double scale = 1.0;
         if (isWindows) {
           data = _image2!.getBytes(order: img2.ChannelOrder.bgra);
@@ -1980,11 +1937,6 @@ class CursorModel with ChangeNotifier {
     notifyListeners();
   }
 
-  disposeImages() {
-    _images.forEach((_, v) => v.item1.dispose());
-    _images.clear();
-  }
-
   updateCursorData(Map<String, dynamic> evt) async {
     final id = int.parse(evt['id']);
     final hotx = double.parse(evt['hotx']);
@@ -1995,11 +1947,7 @@ class CursorModel with ChangeNotifier {
     final rgba = Uint8List.fromList(colors.map((s) => s as int).toList());
     final image = await img.decodeImageFromPixels(
         rgba, width, height, ui.PixelFormat.rgba8888);
-    if (image == null) {
-      return;
-    }
     if (await _updateCache(rgba, image, id, hotx, hoty, width, height)) {
-      _images[id]?.item1.dispose();
       _images[id] = Tuple3(image, hotx, hoty);
     }
 
@@ -2114,7 +2062,7 @@ class CursorModel with ChangeNotifier {
     _x = -10000;
     _x = -10000;
     _image = null;
-    disposeImages();
+    _images.clear();
 
     _clearCache();
     _cache = null;
@@ -2357,7 +2305,6 @@ class FFI {
   /// Mobile reuse FFI
   void mobileReset() {
     ffiModel.waitForFirstImage.value = true;
-    ffiModel.isRefreshing = false;
     ffiModel.waitForImageDialogShow.value = true;
     ffiModel.waitForImageTimer?.cancel();
     ffiModel.waitForImageTimer = null;
@@ -2424,7 +2371,7 @@ class FFI {
           sessionId: sessionId, displays: Int32List.fromList(displays));
       ffiModel.pi.currentDisplay = display;
     }
-    if (isDesktop && connType == ConnType.defaultConn) {
+    if (connType == ConnType.defaultConn && useTextureRender) {
       textureModel.updateCurrentDisplay(display ?? 0);
     }
     final stream = bind.sessionStart(sessionId: sessionId, id: id);
@@ -2446,8 +2393,9 @@ class FFI {
       }
     }
 
-    imageModel.updateUserTextureRender();
+    final hasPixelBufferTextureRender = bind.mainHasPixelbufferTextureRender();
     final hasGpuTextureRender = bind.mainHasGpuTextureRender();
+
     final SimpleWrapper<bool> isToNewWindowNotified = SimpleWrapper(false);
     // Preserved for the rgba data.
     stream.listen((message) {
@@ -2496,7 +2444,7 @@ class FFI {
           }
         } else if (message is EventToUI_Rgba) {
           final display = message.field0;
-          if (imageModel.useTextureRender) {
+          if (hasPixelBufferTextureRender) {
             debugPrint("EventToUI_Rgba display:$display");
             textureModel.setTextureType(display: display, gpuTexture: false);
             onEvent2UIRgba();

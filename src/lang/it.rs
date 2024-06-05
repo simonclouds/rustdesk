@@ -607,13 +607,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Follow remote window focus", "Segui focus finestra remota"),
         ("default_proxy_tip", "Protocollo e porta predefiniti sono Socks5 e 1080"),
         ("no_audio_input_device_tip", "Nessun dispositivo input audio trovato."),
-        ("Incoming", "In entrata"),
-        ("Outgoing", "In uscita"),
-        ("Clear Wayland screen selection", "Annulla selezione schermata Wayland"),
-        ("clear_Wayland_screen_selection_tip", "Dopo aver annullato la selezione schermo, è possibile selezionare nuovamente lo schermo da condividere."),
-        ("confirm_clear_Wayland_screen_selection_tip", "Sei sicuro di voler annullare la selezione schermo Wayland?"),
-        ("android_new_voice_call_tip", "È stata ricevuta una nuova richiesta di chiamata vocale. Se accetti, l'audio passerà alla comunicazione vocale."),
-        ("texture_render_tip", "Usa il rendering texture per rendere le immagini più fluide."),
-        ("Use texture rendering", "Usa rendering texture"),
+        ("Incoming", ""),
+        ("Outgoing", ""),
     ].iter().cloned().collect();
 }

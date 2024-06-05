@@ -177,14 +177,11 @@ void changeIdDialog() {
 }
 
 void changeWhiteList({Function()? callback}) async {
-  final curWhiteList = await bind.mainGetOption(key: kOptionWhitelist);
-  var newWhiteListField = curWhiteList == defaultOptionWhitelist
-      ? ''
-      : curWhiteList.split(',').join('\n');
+  var newWhiteList = (await bind.mainGetOption(key: 'whitelist')).split(',');
+  var newWhiteListField = newWhiteList.join('\n');
   var controller = TextEditingController(text: newWhiteListField);
   var msg = "";
   var isInProgress = false;
-  final isOptFixed = isOptionFixed(kOptionWhitelist);
   gFFI.dialogManager.show((setState, close, context) {
     return CustomAlertDialog(
       title: Text(translate("IP Whitelisting")),
@@ -204,7 +201,6 @@ void changeWhiteList({Function()? callback}) async {
                       errorText: msg.isEmpty ? null : translate(msg),
                     ),
                     controller: controller,
-                    enabled: !isOptFixed,
                     autofocus: true),
               ),
             ],
@@ -218,13 +214,12 @@ void changeWhiteList({Function()? callback}) async {
       ),
       actions: [
         dialogButton("Cancel", onPressed: close, isOutline: true),
-        if (!isOptFixed)dialogButton("Clear", onPressed: () async {
-          await bind.mainSetOption(
-              key: kOptionWhitelist, value: defaultOptionWhitelist);
+        dialogButton("Clear", onPressed: () async {
+          await bind.mainSetOption(key: 'whitelist', value: '');
           callback?.call();
           close();
         }, isOutline: true),
-        if (!isOptFixed) dialogButton(
+        dialogButton(
           "OK",
           onPressed: () async {
             setState(() {
@@ -253,11 +248,7 @@ void changeWhiteList({Function()? callback}) async {
               }
               newWhiteList = ips.join(',');
             }
-            if (newWhiteList.trim().isEmpty) {
-              newWhiteList = defaultOptionWhitelist;
-            }
-            await bind.mainSetOption(
-                key: kOptionWhitelist, value: newWhiteList);
+            await bind.mainSetOption(key: 'whitelist', value: newWhiteList);
             callback?.call();
             close();
           },
@@ -307,7 +298,7 @@ Future<String> changeDirectAccessPort(
         dialogButton("Cancel", onPressed: close, isOutline: true),
         dialogButton("OK", onPressed: () async {
           await bind.mainSetOption(
-              key: kOptionDirectAccessPort, value: controller.text);
+              key: 'direct-access-port', value: controller.text);
           close();
         }),
       ],
@@ -354,7 +345,7 @@ Future<String> changeAutoDisconnectTimeout(String old) async {
         dialogButton("Cancel", onPressed: close, isOutline: true),
         dialogButton("OK", onPressed: () async {
           await bind.mainSetOption(
-              key: kOptionAutoDisconnectTimeout, value: controller.text);
+              key: 'auto-disconnect-timeout', value: controller.text);
           close();
         }),
       ],

@@ -11,10 +11,15 @@ import './platform_model.dart';
 import 'package:texture_rgba_renderer/texture_rgba_renderer.dart'
     if (dart.library.html) 'package:flutter_hbb/web/texture_rgba_renderer.dart';
 
+// Feature flutter_texture_render need to be enabled if feature vram is enabled.
+final useTextureRender = !isWeb &&
+    (bind.mainHasPixelbufferTextureRender() || bind.mainHasGpuTextureRender());
+
 class _PixelbufferTexture {
   int _textureKey = -1;
   int _display = 0;
   SessionID? _sessionId;
+  final support = bind.mainHasPixelbufferTextureRender();
   bool _destroying = false;
   int? _id;
 
@@ -23,24 +28,26 @@ class _PixelbufferTexture {
   int get display => _display;
 
   create(int d, SessionID sessionId, FFI ffi) {
-    _display = d;
-    _textureKey = bind.getNextTextureKey();
-    _sessionId = sessionId;
+    if (support) {
+      _display = d;
+      _textureKey = bind.getNextTextureKey();
+      _sessionId = sessionId;
 
-    textureRenderer.createTexture(_textureKey).then((id) async {
-      _id = id;
-      if (id != -1) {
-        ffi.textureModel.setRgbaTextureId(display: d, id: id);
-        final ptr = await textureRenderer.getTexturePtr(_textureKey);
-        platformFFI.registerPixelbufferTexture(sessionId, display, ptr);
-        debugPrint(
-            "create pixelbuffer texture: peerId: ${ffi.id} display:$_display, textureId:$id, texturePtr:$ptr");
-      }
-    });
+      textureRenderer.createTexture(_textureKey).then((id) async {
+        _id = id;
+        if (id != -1) {
+          ffi.textureModel.setRgbaTextureId(display: d, id: id);
+          final ptr = await textureRenderer.getTexturePtr(_textureKey);
+          platformFFI.registerPixelbufferTexture(sessionId, display, ptr);
+          debugPrint(
+              "create pixelbuffer texture: peerId: ${ffi.id} display:$_display, textureId:$id");
+        }
+      });
+    }
   }
 
   destroy(bool unregisterTexture, FFI ffi) async {
-    if (!_destroying && _textureKey != -1 && _sessionId != null) {
+    if (!_destroying && support && _textureKey != -1 && _sessionId != null) {
       _destroying = true;
       if (unregisterTexture) {
         platformFFI.registerPixelbufferTexture(_sessionId!, display, 0);
@@ -95,15 +102,13 @@ class _GpuTexture {
     }
   }
 
-  destroy(bool unregisterTexture, FFI ffi) async {
+  destroy(FFI ffi) async {
     // must stop texture render, render unregistered texture cause crash
     if (!_destroying && support && _sessionId != null && _textureId != -1) {
       _destroying = true;
-      if (unregisterTexture) {
-        platformFFI.registerGpuTexture(_sessionId!, _display, 0);
-        // sleep for a while to avoid the texture is used after it's unregistered.
-        await Future.delayed(Duration(milliseconds: 100));
-      }
+      platformFFI.registerGpuTexture(_sessionId!, _display, 0);
+      // sleep for a while to avoid the texture is used after it's unregistered.
+      await Future.delayed(Duration(milliseconds: 100));
       await gpuTextureRenderer.unregisterTexture(_textureId);
       _textureId = -1;
       _destroying = false;
@@ -203,7 +208,7 @@ class TextureModel {
         _pixelbufferRenderTextures.remove(idx);
       }
       if (_gpuRenderTextures.containsKey(idx)) {
-        _gpuRenderTextures[idx]!.destroy(true, ffi);
+        _gpuRenderTextures[idx]!.destroy(ffi);
         _gpuRenderTextures.remove(idx);
       }
     }
@@ -230,7 +235,7 @@ class TextureModel {
       await texture.destroy(closeSession, ffi);
     }
     for (final texture in _gpuRenderTextures.values) {
-      await texture.destroy(closeSession, ffi);
+      await texture.destroy(ffi);
     }
   }
 

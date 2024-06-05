@@ -3,7 +3,6 @@ use crate::{
     common::{is_keyboard_mode_supported, make_fd_to_json},
     flutter::{
         self, session_add, session_add_existed, session_start_, sessions, try_sync_peer_option,
-        FlutterHandler,
     },
     input::*,
     ui_interface::{self, *},
@@ -276,6 +275,15 @@ pub fn session_get_flutter_option(session_id: SessionID, k: String) -> Option<St
 pub fn session_set_flutter_option(session_id: SessionID, k: String, v: String) {
     if let Some(session) = sessions::get_session_by_session_id(&session_id) {
         session.save_flutter_option(k, v);
+    }
+}
+
+// This function is only used for the default connection session.
+pub fn session_get_flutter_option_by_peer_id(id: String, k: String) -> Option<String> {
+    if let Some(session) = sessions::get_session_by_peer_id(id, ConnType::DEFAULT_CONN) {
+        Some(session.get_flutter_option(k))
+    } else {
+        None
     }
 }
 
@@ -712,8 +720,9 @@ pub fn session_change_resolution(session_id: SessionID, display: i32, width: i32
     }
 }
 
-pub fn session_set_size(session_id: SessionID, display: usize, width: usize, height: usize) {
-    super::flutter::session_set_size(session_id, display, width, height)
+pub fn session_set_size(_session_id: SessionID, _display: usize, _width: usize, _height: usize) {
+    #[cfg(feature = "flutter_texture_render")]
+    super::flutter::session_set_size(_session_id, _display, _width, _height)
 }
 
 pub fn session_send_selected_session_id(session_id: SessionID, sid: String) {
@@ -766,7 +775,7 @@ pub fn main_get_error() -> String {
 
 pub fn main_show_option(_key: String) -> SyncReturn<bool> {
     #[cfg(target_os = "linux")]
-    if _key.eq(config::keys::OPTION_ALLOW_LINUX_HEADLESS) {
+    if _key.eq(config::CONFIG_OPTION_ALLOW_LINUX_HEADLESS) {
         return SyncReturn(true);
     }
     SyncReturn(false)
@@ -774,13 +783,13 @@ pub fn main_show_option(_key: String) -> SyncReturn<bool> {
 
 pub fn main_set_option(key: String, value: String) {
     if key.eq("custom-rendezvous-server") {
-        set_option(key, value.clone());
+        set_option(key, value);
         #[cfg(target_os = "android")]
         crate::rendezvous_mediator::RendezvousMediator::restart();
         #[cfg(any(target_os = "android", target_os = "ios", feature = "cli"))]
         crate::common::test_rendezvous_server();
     } else {
-        set_option(key, value.clone());
+        set_option(key, value);
     }
 }
 
@@ -892,57 +901,12 @@ pub fn main_get_local_option(key: String) -> SyncReturn<String> {
     SyncReturn(get_local_option(key))
 }
 
-pub fn main_get_use_texture_render() -> SyncReturn<bool> {
-    SyncReturn(use_texture_render())
-}
-
 pub fn main_get_env(key: String) -> SyncReturn<String> {
     SyncReturn(std::env::var(key).unwrap_or_default())
 }
 
 pub fn main_set_local_option(key: String, value: String) {
-    let is_texture_render_key = key.eq(config::keys::OPTION_TEXTURE_RENDER);
-    set_local_option(key, value.clone());
-    if is_texture_render_key {
-        let session_event = [("v", &value)];
-        for session in sessions::get_sessions() {
-            session.push_event("use_texture_render", &session_event, &[]);
-            session.use_texture_render_changed();
-            session.ui_handler.update_use_texture_render();
-        }
-    }
-}
-
-// We do use use `main_get_local_option` and `main_set_local_option`.
-//
-// 1. For get, the value is stored in the server process.
-// 2. For clear, we need to need to return the error mmsg from the server process to flutter.
-pub fn main_handle_wayland_screencast_restore_token(_key: String, _value: String) -> String {
-    #[cfg(not(target_os = "linux"))]
-    {
-        return "".to_owned();
-    }
-    #[cfg(target_os = "linux")]
-    if _value == "get" {
-        match crate::ipc::get_wayland_screencast_restore_token(_key) {
-            Ok(v) => v,
-            Err(e) => {
-                log::error!("Failed to get wayland screencast restore token, {}", e);
-                "".to_owned()
-            }
-        }
-    } else if _value == "clear" {
-        match crate::ipc::clear_wayland_screencast_restore_token(_key.clone()) {
-            Ok(true) => {
-                set_local_option(_key, "".to_owned());
-                "".to_owned()
-            }
-            Ok(false) => "Failed to clear, please try again.".to_owned(),
-            Err(e) => format!("Failed to clear, {}", e),
-        }
-    } else {
-        "".to_owned()
-    }
+    set_local_option(key, value)
 }
 
 pub fn main_get_input_source() -> SyncReturn<String> {
@@ -1195,23 +1159,6 @@ pub fn main_get_user_default_option(key: String) -> SyncReturn<String> {
 
 pub fn main_handle_relay_id(id: String) -> String {
     handle_relay_id(&id).to_owned()
-}
-
-pub fn main_is_option_fixed(key: String) -> SyncReturn<bool> {
-    SyncReturn(
-        config::OVERWRITE_DISPLAY_SETTINGS
-            .read()
-            .unwrap()
-            .contains_key(&key)
-            || config::OVERWRITE_LOCAL_SETTINGS
-                .read()
-                .unwrap()
-                .contains_key(&key)
-            || config::OVERWRITE_SETTINGS
-                .read()
-                .unwrap()
-                .contains_key(&key),
-    )
 }
 
 pub fn main_get_main_display() -> SyncReturn<String> {
@@ -1837,6 +1784,10 @@ pub fn main_hide_docker() -> SyncReturn<bool> {
     SyncReturn(true)
 }
 
+pub fn main_has_pixelbuffer_texture_render() -> SyncReturn<bool> {
+    SyncReturn(cfg!(feature = "flutter_texture_render"))
+}
+
 pub fn main_has_file_clipboard() -> SyncReturn<bool> {
     let ret = cfg!(any(
         target_os = "windows",
@@ -1904,10 +1855,6 @@ pub fn is_disable_ab() -> SyncReturn<bool> {
 
 pub fn is_disable_account() -> SyncReturn<bool> {
     SyncReturn(config::is_disable_account())
-}
-
-pub fn is_disable_group_panel() -> SyncReturn<bool> {
-    SyncReturn(LocalConfig::get_option("disable-group-panel") == "Y")
 }
 
 // windows only

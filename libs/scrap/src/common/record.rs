@@ -2,7 +2,8 @@ use crate::CodecFormat;
 #[cfg(feature = "hwcodec")]
 use hbb_common::anyhow::anyhow;
 use hbb_common::{
-    bail, chrono, log,
+    bail, chrono,
+    log,
     message_proto::{message, video_frame, EncodedVideoFrame, Message},
     ResultType,
 };
