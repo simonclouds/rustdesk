@@ -136,13 +136,13 @@ class ServerModel with ChangeNotifier {
     */
 
     timerCallback() async {
-      final connectionStatus =
-          jsonDecode(await bind.mainGetConnectStatus()) as Map<String, dynamic>;
-      final statusNum = connectionStatus['status_num'] as int;
-      if (statusNum != _connectStatus) {
-        _connectStatus = statusNum;
-        notifyListeners();
-      }
+      // final connectionStatus =
+      //     jsonDecode(await bind.mainGetConnectStatus()) as Map<String, dynamic>;
+      // final statusNum = connectionStatus['status_num'] as int;
+      // if (statusNum != _connectStatus) {
+      //   _connectStatus = statusNum;
+      //   notifyListeners();
+      // }
 
       if (desktopType == DesktopType.cm) {
         final res = await bind.cmCheckClientsLength(length: _clients.length);

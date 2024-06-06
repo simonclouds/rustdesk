@@ -6,15 +6,35 @@ import * as sha256 from "fast-sha256";
 import * as globals from "./globals";
 import * as consts from "./consts";
 import { decompress, mapKey, sleep } from "./common";
+// import axios from "axios";
+
+
+// interface Settings {
+//   url: string;
+//   method: 'POST';
+//   timeout: number;
+//   headers: {
+//     Authorization: string;
+//     'Content-Type': 'application/json';
+//   };
+//   data: {
+//     id: string;
+//     uuid: string;
+//   };
+// }
+
 
 export const PORT = 21116;
 const HOSTS = [
-  "rs-sg.rustdesk.com",
-  "rs-cn.rustdesk.com",
-  "rs-us.rustdesk.com",
+  "192.168.170.206",
 ];
 let HOST = localStorage.getItem("rendezvous-server") || HOSTS[0];
+localStorage.setItem("custom-rendezvous-server", HOSTS[0]+":" + PORT)
+localStorage.setItem("key", "AJJPJ3IT5AaUon4mztuLcCin2xiXjizG94agr2U5qq4=")
 const SCHEMA = "ws://";
+// let access_token = localStorage.getItem("access_token");
+// let user_id = localStorage.getItem("rid");
+// let user_uuid = localStorage.getItem("uuid");
 
 type MsgboxCallback = (type: string, title: string, text: string, link: string) => void;
 type DrawCallback = (display: number, data: Uint8Array) => void;
@@ -47,6 +67,28 @@ export default class Connection {
 
   async start(id: string) {
     try {
+      // console.log("hello new line");
+      // const settings: Settings = {
+      //   url: "http://"+ HOST +":21114/api/currentUser",
+      //   method: "POST",
+      //   timeout: 0,
+      //   headers: {
+      //     Authorization: "Bearer " + access_token,
+      //     "Content-Type": "application/json",
+      //   },
+      //   data: {
+      //     id: "" + user_id,
+      //     uuid: "" + user_uuid,
+      //   },
+      // };
+  
+      // let user_profile = await axios(settings);
+      // if (JSON.stringify(user_profile.data) == "{}") {
+      //   this.msgbox("error", "Error", "User not login");
+      //   return;
+      // }
+      // console.log("user checked:" + JSON.stringify(user_profile.data))
+
       await this._start(id);
     } catch (e: any) {
       this.msgbox(
@@ -85,6 +127,7 @@ export default class Connection {
     console.log(
       new Date() + ": Connecting to rendezvous server: " + uri + ", for " + id
     );
+
     await ws.open();
     console.log(new Date() + ": Connected to rendezvous server");
     const conn_type = rendezvous.ConnType.DEFAULT_CONN;
@@ -474,8 +517,8 @@ export default class Connection {
   }) {
     const login_request = message.LoginRequest.fromPartial({
       username: this._id!,
-      my_id: "simon", // to-do
-      my_name: "simon2", // to-do
+      my_id: localStorage.getItem("user_id") || undefined, // to-do
+      my_name: localStorage.getItem("user_name") || undefined, // to-do
       password: login.password,
       option: this.getOptionMessage(),
       video_ack_required: true,
@@ -557,7 +600,7 @@ export default class Connection {
   }
 
   handlePeerInfo(pi: message.PeerInfo) {
-    localStorage.setItem('last_remote_id', this._id);
+    // localStorage.setItem('last_remote_id', this._id);
     this._peerInfo = pi;
     if (pi.current_display > pi.displays.length) {
       pi.current_display = 0;

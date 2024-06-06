@@ -30,7 +30,8 @@ class ConnectionPage extends StatefulWidget implements PageShape {
   final title = translate("Connection");
 
   @override
-  final appBarActions = isWeb ? <Widget>[const WebMenu()] : <Widget>[];
+  // final appBarActions = isWeb ? <Widget>[const WebMenu()] : <Widget>[];
+  final appBarActions = <Widget>[];
 
   @override
   State<ConnectionPage> createState() => _ConnectionPageState();
@@ -89,7 +90,8 @@ class _ConnectionPageState extends State<ConnectionPage> {
         ])),
         SliverFillRemaining(
           hasScrollBody: true,
-          child: PeerTabPage(),
+          // child: PeerTabPage(),
+          child: null,
         )
       ],
     ).marginOnly(top: 2, left: 10, right: 10);
