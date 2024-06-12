@@ -780,10 +780,12 @@ function getApiServer() {
 }
 
 function getAuditServer(typ) {
+  console.log(localStorage.getItem("access_token"));
   if (!localStorage.getItem("access_token")) {
     return '';
   }
   const api_server = getApiServer();
+  console.log(api_server);
   if (!api_server || api_server.includes('rustdesk.com')) {
     return '';
   }
