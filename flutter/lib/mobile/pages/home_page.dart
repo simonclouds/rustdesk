@@ -158,7 +158,7 @@ class WebHomePage extends StatelessWidget {
       appBar: AppBar(
         centerTitle: true,
         // title: Text(bind.mainGetAppNameSync()),
-        title: Text("RustDeskWebApp"),
+        title: Text("CTE 远程桌面"),
         actions: connectionPage.appBarActions,
       ),
       body: connectionPage,

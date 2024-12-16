@@ -23,7 +23,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:window_size/window_size.dart' as window_size;
 
-
 import '../widgets/button.dart';
 
 class DesktopHomePage extends StatefulWidget {
@@ -62,8 +61,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
 
     //todo simon 硬编码密码和接受模式，貌似未生效
     //bind.mainSetPermanentPassword(password: "!234rewQ");
-    bind.mainSetOption(key: "approve-mode", value:"click");
-
+    bind.mainSetOption(key: "approve-mode", value: "click");
 
     //todo simon 设置自定义 host 和 key --生效
     RxString idErrMsg = ''.obs;
@@ -75,16 +73,14 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       apiErrMsg,
     ];
     setServerConfig(
-      null,
-      errMsgs,
-      ServerConfig(
-          idServer: "192.168.170.206:21116",
-          relayServer: "",
-          apiServer: "",
-          key: "AJJPJ3IT5AaUon4mztuLcCin2xiXjizG94agr2U5qq4="
-    ));
+        null,
+        errMsgs,
+        ServerConfig(
+            idServer: "10.19.97.206:31116",
+            relayServer: "",
+            apiServer: "",
+            key: "AJJPJ3IT5AaUon4mztuLcCin2xiXjizG94agr2U5qq4="));
     setState(() {});
-
 
     final isIncomingOnly = bind.isIncomingOnly();
     return Row(
@@ -448,7 +444,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           "Status",
           "There is a newer version of ${bind.mainGetAppNameSync()} ${bind.mainGetNewVersion()} available.",
           "Click to download", () async {
-        final Uri url = Uri.parse('https://github.com/simonclouds/rustdesk/releases/latest');
+        final Uri url = Uri.parse(
+            'https://github.com/simonclouds/rustdesk/releases/latest');
         await launchUrl(url);
       }, closeButton: true);
     }
@@ -826,9 +823,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         _updateWindowSize();
       });
     }
-
-
-            
   }
 
   _updateWindowSize() {
